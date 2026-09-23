@@ -1,0 +1,10 @@
+# downloaded build/test dependencies (fetched by build.sh, run-*.sh, check-java6-api.sh)
+lib/*.jar
+lib/*.signature
+test-deps/*.jar
+
+# build output (also covered by the repo-level **/build/)
+build/
+
+# compiled helper classes (recompiled by the scripts)
+tools/*.class
