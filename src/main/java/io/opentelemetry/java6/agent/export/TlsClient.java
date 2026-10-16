@@ -10,10 +10,12 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.security.KeyStore;
 import java.security.SecureRandom;
-import java.security.cert.CertPath;
-import java.security.cert.CertPathValidator;
+import java.security.cert.CertPathBuilder;
+import java.security.cert.CertStore;
 import java.security.cert.CertificateFactory;
-import java.security.cert.PKIXParameters;
+import java.security.cert.CollectionCertStoreParameters;
+import java.security.cert.PKIXBuilderParameters;
+import java.security.cert.X509CertSelector;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -90,22 +92,23 @@ final class TlsClient extends DefaultTlsClient {
     }
     try {
       CertificateFactory factory = CertificateFactory.getInstance("X.509");
-      List<X509Certificate> path = new ArrayList<X509Certificate>(chain.length);
+      List<X509Certificate> sent = new ArrayList<X509Certificate>(chain.length);
       for (int i = 0; i < chain.length; i++) {
-        X509Certificate cert =
+        sent.add(
             (X509Certificate)
-                factory.generateCertificate(new ByteArrayInputStream(chain[i].getEncoded()));
-        // a self-signed root sent by the server is the trust anchor, not part of the path
-        if (i > 0 && cert.getSubjectX500Principal().equals(cert.getIssuerX500Principal())) {
-          break;
-        }
-        path.add(cert);
+                factory.generateCertificate(new ByteArrayInputStream(chain[i].getEncoded())));
       }
-      CertPath certPath = factory.generateCertPath(path);
-      PKIXParameters parameters = new PKIXParameters(trust);
+      // The server may send a root that is cross-signed by another CA (so not self-signed): build
+      // the path from the leaf using the sent certificates as intermediates, ending at the trust
+      PKIXBuilderParameters parameters = new PKIXBuilderParameters(trust, null);
+      X509CertSelector target = new X509CertSelector();
+      target.setCertificate(sent.get(0));
+      parameters.setTargetCertConstraints(target);
       parameters.setRevocationEnabled(false);
-      CertPathValidator.getInstance("PKIX").validate(certPath, parameters);
-      if (!hostMatches(path.get(0), host)) {
+      parameters.addCertStore(
+          CertStore.getInstance("Collection", new CollectionCertStoreParameters(sent)));
+      CertPathBuilder.getInstance("PKIX").build(parameters);
+      if (!hostMatches(sent.get(0), host)) {
         throw new IOException("certificate does not match host " + host);
       }
     } catch (IOException e) {

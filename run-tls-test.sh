@@ -44,6 +44,16 @@ server_cert() {  # name san
 }
 server_cert localhost "DNS:localhost,IP:127.0.0.1"
 server_cert otherhost "DNS:otherhost"
+# a server that sends a root cross-signed by another CA, while the root itself is the trust
+openssl req -x509 -newkey rsa:2048 -nodes -keyout "$w/old.key" -out "$w/old.pem" -days 1 -subj "/CN=otel-java6-test-old-root" 2>/dev/null
+openssl req -x509 -newkey rsa:2048 -nodes -keyout "$w/root.key" -out "$w/root.pem" -days 1 -subj "/CN=otel-java6-test-root" 2>/dev/null
+openssl req -new -key "$w/root.key" -out "$w/cross.csr" -subj "/CN=otel-java6-test-root" 2>/dev/null
+printf "basicConstraints=critical,CA:TRUE\n" > "$w/cross.ext"
+openssl x509 -req -in "$w/cross.csr" -CA "$w/old.pem" -CAkey "$w/old.key" -CAcreateserial -out "$w/cross.pem" -days 1 -extfile "$w/cross.ext" 2>/dev/null
+openssl req -newkey rsa:2048 -nodes -keyout "$w/xchain.key" -out "$w/xchain.csr" -subj "/CN=localhost" 2>/dev/null
+printf "subjectAltName=DNS:localhost,IP:127.0.0.1\n" > "$w/xchain.ext"
+openssl x509 -req -in "$w/xchain.csr" -CA "$w/root.pem" -CAkey "$w/root.key" -CAcreateserial -out "$w/xleaf.pem" -days 1 -extfile "$w/xchain.ext" 2>/dev/null
+cat "$w/xleaf.pem" "$w/cross.pem" > "$w/xchain.pem"
 cat > "$w/receiver.py" <<'PY'
 import http.server, ssl, sys
 class H(http.server.BaseHTTPRequestHandler):
@@ -59,7 +69,8 @@ s.socket = ctx.wrap_socket(s.socket, server_side=True); s.serve_forever()
 PY
 python3 "$w/receiver.py" 18443 "$w/localhost" > "$w/good.log" 2>&1 & GOOD=$!
 python3 "$w/receiver.py" 18444 "$w/otherhost" > "$w/wrong.log" 2>&1 & WRONG=$!
-trap 'kill $GOOD $WRONG 2>/dev/null || true' EXIT
+python3 "$w/receiver.py" 18445 "$w/xchain" > "$w/cross.log" 2>&1 & CROSS=$!
+trap 'kill $GOOD $WRONG $CROSS 2>/dev/null || true' EXIT
 sleep 1
 
 fail=0
@@ -76,6 +87,12 @@ run_on() {
   fi
   export_to "$jvm" https://localhost:18443 "$w/other-ca.pem" "$w/app.log"
   if grep -q "bad_certificate" "$w/app.log"; then echo "PASS: untrusted CA rejected"; else echo "FAIL: untrusted CA accepted"; fail=1; fi
+  export_to "$jvm" https://localhost:18445 "$w/root.pem" "$w/app.log"
+  if [ "$(grep -c POST "$w/cross.log" || true)" -gt 0 ] && ! grep -q "export to .* failed" "$w/app.log"; then
+    echo "PASS: cross-signed root sent by the server, self-signed root trusted"
+  else
+    echo "FAIL: cross-signed root"; grep "failed" "$w/app.log" | head -2; fail=1
+  fi
   export_to "$jvm" https://localhost:18444 "$w/ca.pem" "$w/app.log"
   if grep -q "certificate does not match host" "$w/app.log"; then echo "PASS: host name mismatch rejected"; else echo "FAIL: host name mismatch accepted"; fail=1; fi
 }

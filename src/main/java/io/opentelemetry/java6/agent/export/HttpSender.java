@@ -98,7 +98,7 @@ public final class HttpSender {
           status = "https".equals(url.getProtocol()) ? postTls(payload) : postPlain(payload);
         } catch (IOException e) {
           if (attempt >= MAX_ATTEMPTS || !isRetryable(e)) {
-            logger.warning("OTLP export to " + url + " failed: " + e);
+            logger.warning("OTLP export to " + url + " failed: " + describe(e));
             return false;
           }
           status = -1;
@@ -361,5 +361,13 @@ public final class HttpSender {
       from = end;
     }
     return new ByteArrayInputStream(pem.toString().getBytes("ISO-8859-1"));
+  }
+
+  private static String describe(Throwable e) {
+    StringBuilder sb = new StringBuilder(String.valueOf(e));
+    for (Throwable c = e.getCause(); c != null && c != c.getCause(); c = c.getCause()) {
+      sb.append(" <- ").append(c);
+    }
+    return sb.toString();
   }
 }

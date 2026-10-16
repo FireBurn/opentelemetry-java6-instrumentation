@@ -11,7 +11,7 @@ If the JVM is Java 8 or newer, use the standard agent.
 Maven coordinates of the published jar: `io.opentelemetry.javaagent:opentelemetry-java6agent`
 (this agent's own version, starting at 1.0.0; the standard agent version it mirrors is reported as
 `telemetry.distro.version`, currently 2.31.1). The build sets the version with `VERSION=x.y.z
-./build.sh` (default 1.0.0); it is in the jar manifest and the startup log line.
+./build.sh` (default 1.0.1); it is in the jar manifest and the startup log line.
 
 - [Usage](#usage)
 - [What is instrumented](#what-is-instrumented)
