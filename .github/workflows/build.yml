@@ -40,7 +40,10 @@ jobs:
       # compiles with -source 1.6 -target 1.6, shades the dependencies, and verifies that no
       # class file in the resulting jar is newer than Java 6 (major version 50)
       - name: Build agent
-        run: ./build.sh
+        run: |
+          # on a v* tag the jar's version (manifest, startup log) comes from the tag
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then export VERSION="${GITHUB_REF_NAME#v}"; fi
+          ./build.sh
 
       # unit tests ported from the main project (JDBC URL parser, SQL sanitizer, URL sanitizers,
       # Forwarded headers) run by MiniJupiter, plus a smoke test against the logging exporter
@@ -87,7 +90,10 @@ jobs:
           java-version: 8
 
       - name: Build agent
-        run: ./build.sh
+        run: |
+          # on a v* tag the jar's version (manifest, startup log) comes from the tag
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then export VERSION="${GITHUB_REF_NAME#v}"; fi
+          ./build.sh
 
       - name: Create release
         env:
