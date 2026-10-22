@@ -9,6 +9,9 @@ import java.io.File;
 import java.lang.instrument.Instrumentation;
 import java.util.jar.JarFile;
 import java.security.CodeSource;
+import java.security.MessageDigest;
+import java.security.Security;
+import java.security.Signature;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,12 +35,45 @@ public final class OpenTelemetryAgent {
 
   public static void premain(String agentArgs, Instrumentation instrumentation) {
     try {
+      warmUpSecurityProviders();
       File agentJar = locateAgentJar();
       instrumentation.appendToBootstrapClassLoaderSearch(new JarFile(agentJar));
       AgentInstaller.install(agentJar, instrumentation);
     } catch (Throwable t) {
       // never break the application
       logger.log(Level.SEVERE, "otel-java6 agent failed to start", t);
+    }
+  }
+
+  /**
+   * Loads every JCA provider and the signature algorithms jar verification uses, before any
+   * transformer is registered. Type resolution reads class files through {@code getResourceAsStream},
+   * which verifies signed jars and needs the providers; if they are first loaded from inside a
+   * transform, the thread holds the ext class loader lock while waiting for the app class loader
+   * lock, and deadlocks with a thread that holds them the other way round (seen on WebSphere 8.5
+   * during startup).
+   */
+  private static void warmUpSecurityProviders() {
+    try {
+      Security.getProviders();
+      String[] signatures = {"SHA1withRSA", "SHA256withRSA", "SHA1withDSA", "SHA256withECDSA"};
+      for (String algorithm : signatures) {
+        try {
+          Signature.getInstance(algorithm);
+        } catch (Throwable t) {
+          // not available on this JVM
+        }
+      }
+      String[] digests = {"SHA-1", "SHA-256", "MD5"};
+      for (String algorithm : digests) {
+        try {
+          MessageDigest.getInstance(algorithm);
+        } catch (Throwable t) {
+          // not available on this JVM
+        }
+      }
+    } catch (Throwable t) {
+      logger.log(Level.FINE, "could not pre-load security providers", t);
     }
   }
 

@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 # this agent's own version (Maven: io.opentelemetry.javaagent:opentelemetry-java6agent)
-VERSION="${VERSION:-1.0.1}"
+VERSION="${VERSION:-1.0.2}"
 BB_VERSION=1.18.5
 BC_VERSION=1.77
 PB_VERSION=3.5.1

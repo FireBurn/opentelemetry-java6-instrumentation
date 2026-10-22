@@ -5,6 +5,7 @@
 
 package io.opentelemetry.java6.agent;
 
+import static net.bytebuddy.matcher.ElementMatchers.isExtensionClassLoader;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
@@ -183,6 +184,14 @@ public final class AgentInstaller {
             .or(nameStartsWith("jdk.internal.reflect."))
             .or(nameStartsWith("com.ibm.oti.reflect."))
             .or(nameStartsWith("java.lang.invoke."))
+            // loaded from inside ClassLoader.loadClass while the JVM holds loader locks (provider
+            // lookup, TLS handshakes); resolving their supertypes reads jars and can deadlock
+            .or(nameStartsWith("sun.security."))
+            .or(nameStartsWith("com.sun.crypto."))
+            .or(nameStartsWith("javax.crypto."))
+            .or(nameStartsWith("com.ibm.crypto."))
+            .or(nameStartsWith("com.ibm.jsse2."))
+            .or(nameStartsWith("com.ibm.security."))
             .<TypeDescription>or(isSynthetic());
 
     AgentBuilder builder =
@@ -192,7 +201,9 @@ public final class AgentInstaller {
             .with(new AgentBuilder.PoolStrategy.WithTypePoolCache.Simple(
                 TypePool.Default.ReaderMode.FAST, new WeakConcurrentMap()))
             .with(new EngineListener())
-            .ignore(ignored);
+            // like the standard agent, leave classes of the ext class loader alone: they are loaded
+            // from inside ClassLoader.loadClass with that loader's lock held
+            .ignore(ignored, isExtensionClassLoader());
 
     if (config.isInstrumentationEnabled("jdbc")) {
       builder =
