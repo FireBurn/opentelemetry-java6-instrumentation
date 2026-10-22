@@ -5,6 +5,7 @@
 
 package io.opentelemetry.java6.agent;
 
+import static net.bytebuddy.matcher.ElementMatchers.isBootstrapClassLoader;
 import static net.bytebuddy.matcher.ElementMatchers.isExtensionClassLoader;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -194,6 +195,12 @@ public final class AgentInstaller {
             .or(nameStartsWith("com.ibm.security."))
             .<TypeDescription>or(isSynthetic());
 
+    ElementMatcher.Junction<TypeDescription> bootstrapTypesToInstrument =
+        nameStartsWith("java.net.")
+            .or(nameStartsWith("sun.net.www.protocol."))
+            .or(nameStartsWith("sun.net.httpserver."))
+            .<TypeDescription>or(nameStartsWith("com.sun.net.httpserver."));
+
     AgentBuilder builder =
         new AgentBuilder.Default()
             .disableClassFormatChanges()
@@ -203,7 +210,12 @@ public final class AgentInstaller {
             .with(new EngineListener())
             // like the standard agent, leave classes of the ext class loader alone: they are loaded
             // from inside ClassLoader.loadClass with that loader's lock held
-            .ignore(ignored, isExtensionClassLoader());
+            .ignore(ignored, isExtensionClassLoader())
+            // classes found by the bootstrap loader are transformed from inside
+            // ClassLoader.loadClass (findBootstrapClass) with the loader locks held; resolving
+            // their supertypes reads jars and can deadlock, so only the JDK types that are
+            // instrumented are looked at (the standard agent likewise ignores java./sun./com.sun.)
+            .or(not(bootstrapTypesToInstrument), isBootstrapClassLoader());
 
     if (config.isInstrumentationEnabled("jdbc")) {
       builder =
