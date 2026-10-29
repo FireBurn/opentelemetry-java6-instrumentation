@@ -9,6 +9,7 @@
 
 package io.opentelemetry.java6.agent.instrumentation.jdbc.sql;
 
+import io.opentelemetry.java6.agent.instrumentation.StringUtils;
 import java.util.regex.Pattern;
 
 
@@ -23,7 +24,8 @@ final class AutoSqlSanitizer {
 
   // Lexical states.
   private static final int YYINITIAL = 0;
-  private static final int DOLLAR_STRING = 2;
+  private static final int BLOCK_COMMENT = 2;
+  private static final int DOLLAR_STRING = 4;
 
   /**
    * ZZ_LEXSTATE[l] is the state in the DFA for the lexical state l
@@ -32,7 +34,7 @@ final class AutoSqlSanitizer {
    * l is of the form l = 2*k, k a non negative integer
    */
   private static final int ZZ_LEXSTATE[] = {
-     0,  0,  1, 1
+     0,  0,  1,  1,  2, 2
   };
 
   /**
@@ -276,19 +278,21 @@ final class AutoSqlSanitizer {
   private static final int [] ZZ_ACTION = zzUnpackAction();
 
   private static final String ZZ_ACTION_PACKED_0 =
-    "\2\0\1\1\1\2\1\1\1\3\1\1\1\4\1\5"+
-    "\2\1\1\6\2\1\2\7\1\10\21\11\1\1\1\12"+
-    "\1\13\1\0\1\14\1\0\1\3\2\0\1\7\1\15"+
-    "\1\0\1\16\1\17\2\0\14\11\1\1\17\11\1\0"+
-    "\1\3\2\0\1\20\1\7\2\0\34\11\1\21\1\7"+
-    "\3\11\1\22\5\11\1\23\2\11\1\24\4\11\1\25"+
-    "\1\26\1\11\1\27\6\11\1\30\1\11\1\31\1\32"+
-    "\6\11\1\33\2\11\1\34\6\11\1\35\1\11\1\36"+
-    "\1\11\1\37\3\11\1\40\1\41\6\11\1\42\2\11"+
-    "\2\0\1\43";
+    "\3\0\1\1\1\2\1\1\1\3\1\1\1\4\1\5"+
+    "\1\1\1\6\1\7\1\6\1\1\2\10\1\11\21\12"+
+    "\11\1\1\13\1\14\2\15\1\0\1\16\1\0\1\3"+
+    "\2\0\1\17\1\20\1\21\1\22\2\0\14\12\1\1"+
+    "\17\12\1\0\1\3\1\0\1\23\1\0\1\1\2\0"+
+    "\1\24\1\25\1\26\1\0\1\27\1\0\1\30\1\31"+
+    "\1\0\1\32\1\10\2\0\34\12\1\0\1\33\1\34"+
+    "\1\10\3\12\1\35\5\12\1\36\2\12\1\37\4\12"+
+    "\1\40\1\41\1\12\1\42\6\12\1\43\1\12\1\24"+
+    "\1\44\1\45\6\12\1\46\2\12\1\47\6\12\1\50"+
+    "\1\12\1\51\1\12\1\52\3\12\1\53\1\54\6\12"+
+    "\1\55\2\12\2\0\1\56";
 
   private static int [] zzUnpackAction() {
-    int [] result = new int[185];
+    int [] result = new int[211];
     int offset = 0;
     offset = zzUnpackAction(ZZ_ACTION_PACKED_0, offset, result);
     return result;
@@ -313,33 +317,36 @@ final class AutoSqlSanitizer {
   private static final int [] ZZ_ROWMAP = zzUnpackRowMap();
 
   private static final String ZZ_ROWMAP_PACKED_0 =
-    "\0\0\0\53\0\126\0\201\0\254\0\327\0\u0102\0\126"+
-    "\0\126\0\u012d\0\u0158\0\126\0\u0183\0\u01ae\0\u01d9\0\u0204"+
-    "\0\126\0\u022f\0\u025a\0\u0285\0\u02b0\0\u02db\0\u0306\0\u0331"+
+    "\0\0\0\53\0\126\0\201\0\254\0\327\0\u0102\0\u012d"+
+    "\0\201\0\201\0\u0158\0\u0183\0\201\0\u01ae\0\u01d9\0\u0204"+
+    "\0\u022f\0\201\0\u025a\0\u0285\0\u02b0\0\u02db\0\u0306\0\u0331"+
     "\0\u035c\0\u0387\0\u03b2\0\u03dd\0\u0408\0\u0433\0\u045e\0\u0489"+
-    "\0\u04b4\0\u04df\0\u050a\0\u0535\0\u0560\0\254\0\u058b\0\u05b6"+
-    "\0\u05e1\0\u060c\0\u0102\0\u0637\0\126\0\u0158\0\u0662\0\126"+
-    "\0\u068d\0\u06b8\0\u06e3\0\u070e\0\u0739\0\u0764\0\u078f\0\u07ba"+
-    "\0\u07e5\0\u0810\0\u083b\0\u0866\0\u0891\0\u08bc\0\u025a\0\u08e7"+
-    "\0\u0912\0\u093d\0\u0968\0\u0993\0\u09be\0\u09e9\0\u0a14\0\u0a3f"+
-    "\0\u0a6a\0\u0a95\0\u0ac0\0\u0aeb\0\u0b16\0\u0b41\0\u050a\0\u0b6c"+
-    "\0\u0b97\0\u0bc2\0\126\0\u068d\0\u0bed\0\u0c18\0\u0c43\0\u0c6e"+
-    "\0\u0c99\0\u0cc4\0\u0cef\0\u0d1a\0\u0d45\0\u0d70\0\u0d9b\0\u0dc6"+
-    "\0\u0df1\0\u0e1c\0\u0e47\0\u0e72\0\u0e9d\0\u0ec8\0\u0ef3\0\u0f1e"+
-    "\0\u0f49\0\u0f74\0\u0f9f\0\u0fca\0\u0ff5\0\u1020\0\u104b\0\u1076"+
-    "\0\u10a1\0\u10cc\0\126\0\126\0\u10f7\0\u0b6c\0\u1122\0\u025a"+
-    "\0\u114d\0\u1178\0\u11a3\0\u11ce\0\u11f9\0\u025a\0\u1224\0\u124f"+
-    "\0\u025a\0\u127a\0\u12a5\0\u12d0\0\u12fb\0\u025a\0\u025a\0\u1326"+
-    "\0\u025a\0\u1351\0\u137c\0\u13a7\0\u13d2\0\u13fd\0\u1428\0\u025a"+
-    "\0\u1453\0\u025a\0\u025a\0\u147e\0\u14a9\0\u14d4\0\u14ff\0\u152a"+
-    "\0\u1555\0\u025a\0\u1580\0\u15ab\0\u025a\0\u15d6\0\u1601\0\u162c"+
-    "\0\u1657\0\u1682\0\u16ad\0\u025a\0\u16d8\0\u025a\0\u1703\0\u025a"+
-    "\0\u172e\0\u1759\0\u1784\0\u025a\0\u025a\0\u17af\0\u17da\0\u1805"+
-    "\0\u1830\0\u185b\0\u1886\0\u025a\0\u18b1\0\u18dc\0\u1907\0\u1932"+
-    "\0\126";
+    "\0\u04b4\0\u04df\0\u050a\0\u0535\0\u0560\0\u058b\0\u05b6\0\u05e1"+
+    "\0\u060c\0\u0637\0\u0662\0\u068d\0\u06b8\0\u06e3\0\u070e\0\u0739"+
+    "\0\327\0\u0764\0\u078f\0\u07ba\0\u07e5\0\u012d\0\u0810\0\201"+
+    "\0\u083b\0\201\0\u0866\0\u0891\0\u08bc\0\u08e7\0\u0912\0\u093d"+
+    "\0\u0968\0\u0993\0\u09be\0\u09e9\0\u0a14\0\u0a3f\0\u0a6a\0\u0a95"+
+    "\0\u0285\0\u0ac0\0\u0aeb\0\u0b16\0\u0b41\0\u0b6c\0\u0b97\0\u0bc2"+
+    "\0\u0bed\0\u0c18\0\u0c43\0\u0c6e\0\u0c99\0\u0cc4\0\u0cef\0\u0d1a"+
+    "\0\u0535\0\u0d45\0\u0560\0\u0d70\0\u0d9b\0\u0dc6\0\u0df1\0\u05b6"+
+    "\0\u0e1c\0\201\0\201\0\u068d\0\201\0\u0e47\0\201\0\201"+
+    "\0\u0e72\0\201\0\u0866\0\u0e9d\0\u0ec8\0\u0ef3\0\u0f1e\0\u0f49"+
+    "\0\u0f74\0\u0f9f\0\u0fca\0\u0ff5\0\u1020\0\u104b\0\u1076\0\u10a1"+
+    "\0\u10cc\0\u10f7\0\u1122\0\u114d\0\u1178\0\u11a3\0\u11ce\0\u11f9"+
+    "\0\u1224\0\u124f\0\u127a\0\u12a5\0\u12d0\0\u12fb\0\u1326\0\u1351"+
+    "\0\u137c\0\u13a7\0\201\0\201\0\201\0\u13d2\0\u0d45\0\u13fd"+
+    "\0\u0285\0\u1428\0\u1453\0\u147e\0\u14a9\0\u14d4\0\u0285\0\u14ff"+
+    "\0\u152a\0\u0285\0\u1555\0\u1580\0\u15ab\0\u15d6\0\u0285\0\u0285"+
+    "\0\u1601\0\u0285\0\u162c\0\u1657\0\u1682\0\u16ad\0\u16d8\0\u1703"+
+    "\0\u0285\0\u172e\0\201\0\u0285\0\u0285\0\u1759\0\u1784\0\u17af"+
+    "\0\u17da\0\u1805\0\u1830\0\u0285\0\u185b\0\u1886\0\u0285\0\u18b1"+
+    "\0\u18dc\0\u1907\0\u1932\0\u195d\0\u1988\0\u0285\0\u19b3\0\u0285"+
+    "\0\u19de\0\u0285\0\u1a09\0\u1a34\0\u1a5f\0\u0285\0\u0285\0\u1a8a"+
+    "\0\u1ab5\0\u1ae0\0\u1b0b\0\u1b36\0\u1b61\0\u0285\0\u1b8c\0\u1bb7"+
+    "\0\u1be2\0\u1c0d\0\201";
 
   private static int [] zzUnpackRowMap() {
-    int [] result = new int[185];
+    int [] result = new int[211];
     int offset = 0;
     offset = zzUnpackRowMap(ZZ_ROWMAP_PACKED_0, offset, result);
     return result;
@@ -362,150 +369,160 @@ final class AutoSqlSanitizer {
   private static final int [] ZZ_TRANS = zzUnpacktrans();
 
   private static final String ZZ_TRANS_PACKED_0 =
-    "\1\3\2\4\1\5\1\6\1\7\1\10\1\11\1\12"+
-    "\1\13\1\14\1\15\1\13\1\16\1\17\1\20\1\21"+
-    "\1\22\1\23\1\24\1\25\1\26\1\27\1\30\1\23"+
-    "\1\31\1\32\2\23\1\33\1\34\1\23\1\35\1\23"+
-    "\1\36\1\37\1\40\1\41\1\42\3\23\1\43\4\44"+
-    "\1\45\46\44\54\0\2\4\50\0\3\46\1\47\47\46"+
-    "\4\0\1\50\11\0\2\51\1\0\31\52\1\0\5\53"+
-    "\1\54\45\53\15\0\1\55\46\0\1\56\1\0\2\56"+
-    "\1\0\2\20\44\0\1\56\1\0\1\57\1\56\1\0"+
-    "\2\20\43\0\1\60\53\0\1\20\1\0\2\20\1\0"+
-    "\2\20\5\0\1\20\22\0\1\61\13\0\1\20\1\0"+
-    "\2\20\1\0\2\20\5\0\1\20\41\0\1\62\1\0"+
-    "\2\23\1\0\13\23\1\63\15\23\15\0\1\62\1\0"+
-    "\2\23\1\0\31\23\15\0\1\62\1\0\2\23\1\0"+
-    "\1\64\6\23\1\65\6\23\1\66\2\23\1\67\7\23"+
-    "\15\0\1\62\1\0\2\23\1\0\1\70\3\23\1\71"+
-    "\14\23\1\72\7\23\15\0\1\62\1\0\2\23\1\0"+
-    "\27\23\1\73\1\23\15\0\1\62\1\0\2\23\1\0"+
-    "\21\23\1\74\7\23\15\0\1\62\1\0\2\23\1\0"+
-    "\21\23\1\75\7\23\15\0\1\62\1\0\2\23\1\0"+
-    "\3\23\1\76\1\23\1\77\6\23\1\100\1\101\13\23"+
-    "\15\0\1\62\1\0\2\23\1\0\16\23\1\102\12\23"+
-    "\15\0\1\62\1\0\2\23\1\0\4\23\1\103\24\23"+
-    "\15\0\1\62\1\0\2\23\1\0\4\23\1\104\11\23"+
-    "\1\105\12\23\15\0\1\62\1\0\2\23\1\0\1\106"+
-    "\20\23\1\107\7\23\15\0\1\62\1\0\2\23\1\0"+
-    "\4\23\1\110\24\23\15\0\1\62\1\0\2\23\1\0"+
-    "\4\23\1\111\24\23\15\0\1\62\1\0\2\23\1\0"+
-    "\1\112\30\23\15\0\1\62\1\0\2\23\1\0\17\23"+
-    "\1\113\2\23\1\114\6\23\15\0\1\62\1\0\2\23"+
-    "\1\0\1\115\7\23\1\116\20\23\1\0\52\117\1\120"+
-    "\4\44\1\0\46\44\21\0\31\121\4\0\1\46\10\0"+
-    "\1\62\36\0\4\50\1\122\46\50\16\0\2\51\37\0"+
-    "\1\123\11\0\2\52\1\0\31\52\6\0\1\53\45\0"+
-    "\2\57\1\0\50\57\16\0\2\124\1\0\6\124\27\0"+
-    "\1\125\15\0\31\23\1\126\14\0\1\62\1\0\2\23"+
-    "\1\0\23\23\1\127\5\23\15\0\1\62\1\0\2\23"+
-    "\1\0\13\23\1\130\15\23\15\0\1\62\1\0\2\23"+
-    "\1\0\4\23\1\131\24\23\15\0\1\62\1\0\2\23"+
-    "\1\0\15\23\1\132\13\23\15\0\1\62\1\0\2\23"+
-    "\1\0\4\23\1\133\24\23\15\0\1\62\1\0\2\23"+
-    "\1\0\23\23\1\134\5\23\15\0\1\62\1\0\2\23"+
-    "\1\0\13\23\1\135\15\23\15\0\1\62\1\0\2\23"+
-    "\1\0\16\23\1\136\12\23\15\0\1\62\1\0\2\23"+
-    "\1\0\10\23\1\137\6\23\1\140\11\23\15\0\1\62"+
-    "\1\0\2\23\1\0\16\23\1\141\12\23\15\0\1\62"+
-    "\1\0\2\23\1\0\1\142\30\23\15\0\1\62\1\0"+
-    "\2\23\1\0\4\23\1\143\24\23\15\0\1\62\1\0"+
-    "\2\23\1\0\17\23\1\140\11\23\15\0\1\62\1\0"+
-    "\2\23\1\0\3\23\1\144\16\23\1\145\1\146\5\23"+
-    "\15\0\1\62\1\0\2\23\1\0\10\23\1\147\20\23"+
-    "\15\0\1\62\1\0\2\23\1\0\21\23\1\150\7\23"+
-    "\15\0\1\62\1\0\2\23\1\0\27\23\1\151\1\23"+
-    "\15\0\1\62\1\0\2\23\1\0\23\23\1\77\5\23"+
-    "\15\0\1\62\1\0\2\23\1\0\22\23\1\152\6\23"+
-    "\15\0\1\62\1\0\2\23\1\0\16\23\1\153\12\23"+
-    "\15\0\1\62\1\0\2\23\1\0\2\23\1\154\26\23"+
-    "\15\0\1\62\1\0\2\23\1\0\13\23\1\155\15\23"+
-    "\15\0\1\62\1\0\2\23\1\0\1\23\1\156\27\23"+
-    "\15\0\1\62\1\0\2\23\1\0\3\23\1\157\25\23"+
-    "\15\0\1\62\1\0\2\23\1\0\4\23\1\160\24\23"+
-    "\15\0\1\62\1\0\2\23\1\0\13\23\1\161\15\23"+
-    "\15\0\1\62\1\0\2\23\1\0\4\23\1\162\24\23"+
-    "\15\0\1\62\42\0\1\163\11\0\2\121\1\0\31\121"+
-    "\5\0\1\164\46\0\3\125\1\165\47\125\52\126\1\166"+
-    "\14\0\1\62\1\0\2\23\1\0\4\23\1\167\24\23"+
-    "\15\0\1\62\1\0\2\23\1\0\13\23\1\170\15\23"+
-    "\15\0\1\62\1\0\2\23\1\0\2\23\1\171\26\23"+
-    "\15\0\1\62\1\0\2\23\1\0\15\23\1\172\13\23"+
-    "\15\0\1\62\1\0\2\23\1\0\1\173\30\23\15\0"+
-    "\1\62\1\0\2\23\1\0\1\174\30\23\15\0\1\62"+
-    "\1\0\2\23\1\0\4\23\1\175\24\23\15\0\1\62"+
-    "\1\0\2\23\1\0\17\23\1\176\11\23\15\0\1\62"+
-    "\1\0\2\23\1\0\22\23\1\177\6\23\15\0\1\62"+
-    "\1\0\2\23\1\0\16\23\1\200\12\23\15\0\1\62"+
-    "\1\0\2\23\1\0\14\23\1\201\14\23\15\0\1\62"+
-    "\1\0\2\23\1\0\15\23\1\202\13\23\15\0\1\62"+
-    "\1\0\2\23\1\0\15\23\1\203\13\23\15\0\1\62"+
-    "\1\0\2\23\1\0\4\23\1\204\24\23\15\0\1\62"+
-    "\1\0\2\23\1\0\4\23\1\205\24\23\15\0\1\62"+
-    "\1\0\2\23\1\0\16\23\1\206\12\23\15\0\1\62"+
-    "\1\0\2\23\1\0\15\23\1\207\13\23\15\0\1\62"+
-    "\1\0\2\23\1\0\6\23\1\210\22\23\15\0\1\62"+
-    "\1\0\2\23\1\0\23\23\1\211\5\23\15\0\1\62"+
-    "\1\0\2\23\1\0\22\23\1\212\6\23\15\0\1\62"+
-    "\1\0\2\23\1\0\2\23\1\213\26\23\15\0\1\62"+
-    "\1\0\2\23\1\0\16\23\1\214\12\23\15\0\1\62"+
-    "\1\0\2\23\1\0\4\23\1\215\24\23\15\0\1\62"+
-    "\1\0\2\23\1\0\13\23\1\216\15\23\15\0\1\62"+
-    "\1\0\2\23\1\0\1\217\30\23\15\0\1\62\1\0"+
-    "\2\23\1\0\21\23\1\220\7\23\15\0\1\62\1\0"+
-    "\2\23\1\0\10\23\1\221\20\23\15\0\1\62\1\0"+
-    "\2\23\1\0\26\23\1\220\2\23\4\0\1\125\10\0"+
-    "\1\62\52\0\1\62\1\0\2\23\1\0\21\23\1\222"+
-    "\7\23\15\0\1\62\1\0\2\23\1\0\12\23\1\223"+
-    "\16\23\15\0\1\62\1\0\2\23\1\0\4\23\1\224"+
-    "\24\23\15\0\1\62\1\0\2\23\1\0\23\23\1\225"+
-    "\5\23\15\0\1\62\1\0\2\23\1\0\1\23\1\226"+
-    "\27\23\15\0\1\62\1\0\2\23\1\0\23\23\1\227"+
-    "\5\23\15\0\1\62\1\0\2\23\1\0\23\23\1\230"+
-    "\5\23\15\0\1\62\1\0\2\23\1\0\21\23\1\231"+
-    "\7\23\15\0\1\62\1\0\2\23\1\0\23\23\1\232"+
-    "\5\23\15\0\1\62\1\0\2\23\1\0\23\23\1\233"+
-    "\5\23\15\0\1\62\1\0\2\23\1\0\27\23\1\220"+
-    "\1\23\15\0\1\62\1\0\2\23\1\0\21\23\1\234"+
-    "\7\23\15\0\1\62\1\0\2\23\1\0\4\23\1\235"+
-    "\24\23\15\0\1\62\1\0\2\23\1\0\26\23\1\236"+
-    "\2\23\15\0\1\62\1\0\2\23\1\0\4\23\1\237"+
-    "\24\23\15\0\1\62\1\0\2\23\1\0\25\23\1\240"+
-    "\3\23\15\0\1\62\1\0\2\23\1\0\2\23\1\241"+
-    "\26\23\15\0\1\62\1\0\2\23\1\0\4\23\1\220"+
-    "\24\23\15\0\1\62\1\0\2\23\1\0\23\23\1\242"+
-    "\5\23\15\0\1\62\1\0\2\23\1\0\3\23\1\243"+
-    "\25\23\15\0\1\62\1\0\2\23\1\0\2\23\1\231"+
-    "\26\23\15\0\1\62\1\0\2\23\1\0\4\23\1\244"+
-    "\24\23\15\0\1\62\1\0\2\23\1\0\1\245\30\23"+
-    "\15\0\1\62\1\0\2\23\1\0\4\23\1\246\24\23"+
-    "\15\0\1\62\1\0\2\23\1\0\22\23\1\77\6\23"+
-    "\15\0\1\62\1\0\2\23\1\0\23\23\1\223\5\23"+
-    "\15\0\1\62\1\0\2\23\1\0\10\23\1\247\20\23"+
-    "\15\0\1\62\1\0\2\23\1\0\23\23\1\250\5\23"+
-    "\15\0\1\62\1\0\2\23\1\0\16\23\1\251\12\23"+
-    "\15\0\1\62\1\0\2\23\1\0\3\23\1\252\25\23"+
-    "\15\0\1\62\1\0\2\23\1\0\4\23\1\253\24\23"+
-    "\15\0\1\62\1\0\2\23\1\0\23\23\1\254\5\23"+
-    "\15\0\1\62\1\0\2\23\1\0\4\23\1\255\24\23"+
-    "\15\0\1\62\1\0\2\23\1\0\1\256\30\23\15\0"+
-    "\1\62\1\0\2\23\1\0\22\23\1\216\6\23\15\0"+
-    "\1\62\1\0\2\23\1\0\5\23\1\257\23\23\15\0"+
-    "\1\62\1\0\2\23\1\0\21\23\1\260\7\23\15\0"+
-    "\1\62\1\0\2\23\1\0\24\23\1\261\4\23\15\0"+
-    "\1\62\1\0\2\23\1\0\21\23\1\223\7\23\15\0"+
-    "\1\62\1\0\2\23\1\0\23\23\1\262\5\23\15\0"+
-    "\1\62\1\0\2\23\1\0\10\23\1\263\20\23\15\0"+
-    "\1\62\1\0\2\23\1\0\3\23\1\264\25\23\15\0"+
-    "\1\62\1\0\2\23\1\0\21\23\1\216\7\23\15\0"+
-    "\1\62\1\0\2\23\1\0\4\23\1\223\24\23\15\0"+
-    "\1\62\1\0\2\23\1\0\4\23\1\265\24\23\15\0"+
-    "\1\62\1\0\2\23\1\0\3\23\1\266\25\23\2\0"+
-    "\2\267\11\0\1\62\1\0\2\23\1\0\31\23\2\0"+
-    "\2\267\17\0\1\270\101\0\1\271\1\0";
+    "\1\4\2\5\1\6\1\7\1\10\1\11\1\12\1\13"+
+    "\1\14\1\15\1\16\1\14\1\17\1\20\1\21\1\22"+
+    "\1\23\1\24\1\25\1\26\1\27\1\30\1\31\1\24"+
+    "\1\32\1\33\2\24\1\34\1\35\1\24\1\36\1\24"+
+    "\1\37\1\40\1\41\1\42\1\43\3\24\1\44\1\4"+
+    "\2\5\1\45\1\46\1\47\2\4\1\50\1\51\1\4"+
+    "\2\51\1\52\1\20\1\21\1\4\31\53\1\54\4\55"+
+    "\1\56\3\55\1\57\4\55\1\60\35\55\54\0\2\5"+
+    "\50\0\3\61\1\62\47\61\4\0\1\63\11\0\2\64"+
+    "\1\0\31\65\1\0\5\66\1\67\45\66\15\0\1\70"+
+    "\46\0\1\14\1\0\2\14\1\0\2\21\44\0\1\14"+
+    "\1\0\1\71\1\14\1\0\2\21\43\0\1\72\53\0"+
+    "\1\21\1\0\2\21\1\0\2\21\5\0\1\21\22\0"+
+    "\1\73\13\0\1\21\1\0\2\21\1\0\2\21\5\0"+
+    "\1\21\41\0\1\74\1\0\2\24\1\0\13\24\1\75"+
+    "\15\24\15\0\1\74\1\0\2\24\1\0\31\24\15\0"+
+    "\1\74\1\0\2\24\1\0\1\76\6\24\1\77\6\24"+
+    "\1\100\2\24\1\101\7\24\15\0\1\74\1\0\2\24"+
+    "\1\0\1\102\3\24\1\103\14\24\1\104\7\24\15\0"+
+    "\1\74\1\0\2\24\1\0\27\24\1\105\1\24\15\0"+
+    "\1\74\1\0\2\24\1\0\21\24\1\106\7\24\15\0"+
+    "\1\74\1\0\2\24\1\0\21\24\1\107\7\24\15\0"+
+    "\1\74\1\0\2\24\1\0\3\24\1\110\1\24\1\111"+
+    "\6\24\1\112\1\113\13\24\15\0\1\74\1\0\2\24"+
+    "\1\0\16\24\1\114\12\24\15\0\1\74\1\0\2\24"+
+    "\1\0\4\24\1\115\24\24\15\0\1\74\1\0\2\24"+
+    "\1\0\4\24\1\116\11\24\1\117\12\24\15\0\1\74"+
+    "\1\0\2\24\1\0\1\120\20\24\1\121\7\24\15\0"+
+    "\1\74\1\0\2\24\1\0\4\24\1\122\24\24\15\0"+
+    "\1\74\1\0\2\24\1\0\4\24\1\123\24\24\15\0"+
+    "\1\74\1\0\2\24\1\0\1\124\30\24\15\0\1\74"+
+    "\1\0\2\24\1\0\17\24\1\125\2\24\1\126\6\24"+
+    "\15\0\1\74\1\0\2\24\1\0\1\127\7\24\1\130"+
+    "\20\24\1\0\52\131\1\132\3\133\1\134\47\133\4\0"+
+    "\1\135\11\0\2\136\1\0\31\137\1\0\5\140\1\141"+
+    "\45\140\15\0\1\142\46\0\1\51\1\0\2\51\1\0"+
+    "\2\21\43\0\1\143\60\0\2\53\1\0\31\53\1\0"+
+    "\52\144\1\145\4\55\1\0\3\55\1\0\4\55\1\0"+
+    "\35\55\21\0\31\146\16\0\1\147\45\0\1\150\45\0"+
+    "\1\61\10\0\1\74\36\0\4\63\1\151\46\63\16\0"+
+    "\2\64\37\0\1\152\11\0\2\65\1\0\31\65\6\0"+
+    "\1\66\45\0\2\71\1\0\50\71\16\0\2\153\1\0"+
+    "\6\153\27\0\1\154\15\0\31\24\1\155\14\0\1\74"+
+    "\1\0\2\24\1\0\23\24\1\156\5\24\15\0\1\74"+
+    "\1\0\2\24\1\0\13\24\1\157\15\24\15\0\1\74"+
+    "\1\0\2\24\1\0\4\24\1\160\24\24\15\0\1\74"+
+    "\1\0\2\24\1\0\15\24\1\161\13\24\15\0\1\74"+
+    "\1\0\2\24\1\0\4\24\1\162\24\24\15\0\1\74"+
+    "\1\0\2\24\1\0\23\24\1\163\5\24\15\0\1\74"+
+    "\1\0\2\24\1\0\13\24\1\164\15\24\15\0\1\74"+
+    "\1\0\2\24\1\0\16\24\1\165\12\24\15\0\1\74"+
+    "\1\0\2\24\1\0\10\24\1\166\6\24\1\167\11\24"+
+    "\15\0\1\74\1\0\2\24\1\0\16\24\1\170\12\24"+
+    "\15\0\1\74\1\0\2\24\1\0\1\171\30\24\15\0"+
+    "\1\74\1\0\2\24\1\0\4\24\1\172\24\24\15\0"+
+    "\1\74\1\0\2\24\1\0\17\24\1\167\11\24\15\0"+
+    "\1\74\1\0\2\24\1\0\3\24\1\173\16\24\1\174"+
+    "\1\175\5\24\15\0\1\74\1\0\2\24\1\0\10\24"+
+    "\1\176\20\24\15\0\1\74\1\0\2\24\1\0\21\24"+
+    "\1\177\7\24\15\0\1\74\1\0\2\24\1\0\27\24"+
+    "\1\200\1\24\15\0\1\74\1\0\2\24\1\0\23\24"+
+    "\1\111\5\24\15\0\1\74\1\0\2\24\1\0\22\24"+
+    "\1\201\6\24\15\0\1\74\1\0\2\24\1\0\16\24"+
+    "\1\202\12\24\15\0\1\74\1\0\2\24\1\0\2\24"+
+    "\1\203\26\24\15\0\1\74\1\0\2\24\1\0\13\24"+
+    "\1\204\15\24\15\0\1\74\1\0\2\24\1\0\1\24"+
+    "\1\205\27\24\15\0\1\74\1\0\2\24\1\0\3\24"+
+    "\1\206\25\24\15\0\1\74\1\0\2\24\1\0\4\24"+
+    "\1\207\24\24\15\0\1\74\1\0\2\24\1\0\13\24"+
+    "\1\210\15\24\15\0\1\74\1\0\2\24\1\0\4\24"+
+    "\1\211\24\24\15\0\1\74\41\0\1\133\47\0\4\135"+
+    "\1\212\46\135\16\0\2\136\37\0\1\213\11\0\2\137"+
+    "\1\0\31\137\6\0\1\140\51\0\1\214\11\0\2\146"+
+    "\1\0\31\146\5\0\1\215\46\0\3\154\1\216\47\154"+
+    "\52\155\1\217\14\0\1\74\1\0\2\24\1\0\4\24"+
+    "\1\220\24\24\15\0\1\74\1\0\2\24\1\0\13\24"+
+    "\1\221\15\24\15\0\1\74\1\0\2\24\1\0\2\24"+
+    "\1\222\26\24\15\0\1\74\1\0\2\24\1\0\15\24"+
+    "\1\223\13\24\15\0\1\74\1\0\2\24\1\0\1\224"+
+    "\30\24\15\0\1\74\1\0\2\24\1\0\1\225\30\24"+
+    "\15\0\1\74\1\0\2\24\1\0\4\24\1\226\24\24"+
+    "\15\0\1\74\1\0\2\24\1\0\17\24\1\227\11\24"+
+    "\15\0\1\74\1\0\2\24\1\0\22\24\1\230\6\24"+
+    "\15\0\1\74\1\0\2\24\1\0\16\24\1\231\12\24"+
+    "\15\0\1\74\1\0\2\24\1\0\14\24\1\232\14\24"+
+    "\15\0\1\74\1\0\2\24\1\0\15\24\1\233\13\24"+
+    "\15\0\1\74\1\0\2\24\1\0\15\24\1\234\13\24"+
+    "\15\0\1\74\1\0\2\24\1\0\4\24\1\235\24\24"+
+    "\15\0\1\74\1\0\2\24\1\0\4\24\1\236\24\24"+
+    "\15\0\1\74\1\0\2\24\1\0\16\24\1\237\12\24"+
+    "\15\0\1\74\1\0\2\24\1\0\15\24\1\240\13\24"+
+    "\15\0\1\74\1\0\2\24\1\0\6\24\1\241\22\24"+
+    "\15\0\1\74\1\0\2\24\1\0\23\24\1\242\5\24"+
+    "\15\0\1\74\1\0\2\24\1\0\22\24\1\243\6\24"+
+    "\15\0\1\74\1\0\2\24\1\0\2\24\1\244\26\24"+
+    "\15\0\1\74\1\0\2\24\1\0\16\24\1\245\12\24"+
+    "\15\0\1\74\1\0\2\24\1\0\4\24\1\246\24\24"+
+    "\15\0\1\74\1\0\2\24\1\0\13\24\1\247\15\24"+
+    "\15\0\1\74\1\0\2\24\1\0\1\250\30\24\15\0"+
+    "\1\74\1\0\2\24\1\0\21\24\1\251\7\24\15\0"+
+    "\1\74\1\0\2\24\1\0\10\24\1\252\20\24\15\0"+
+    "\1\74\1\0\2\24\1\0\26\24\1\251\2\24\5\0"+
+    "\1\253\51\0\1\154\10\0\1\74\52\0\1\74\1\0"+
+    "\2\24\1\0\21\24\1\254\7\24\15\0\1\74\1\0"+
+    "\2\24\1\0\12\24\1\255\16\24\15\0\1\74\1\0"+
+    "\2\24\1\0\4\24\1\256\24\24\15\0\1\74\1\0"+
+    "\2\24\1\0\23\24\1\257\5\24\15\0\1\74\1\0"+
+    "\2\24\1\0\1\24\1\260\27\24\15\0\1\74\1\0"+
+    "\2\24\1\0\23\24\1\261\5\24\15\0\1\74\1\0"+
+    "\2\24\1\0\23\24\1\262\5\24\15\0\1\74\1\0"+
+    "\2\24\1\0\21\24\1\263\7\24\15\0\1\74\1\0"+
+    "\2\24\1\0\23\24\1\264\5\24\15\0\1\74\1\0"+
+    "\2\24\1\0\23\24\1\265\5\24\15\0\1\74\1\0"+
+    "\2\24\1\0\27\24\1\251\1\24\15\0\1\74\1\0"+
+    "\2\24\1\0\21\24\1\266\7\24\15\0\1\74\1\0"+
+    "\2\24\1\0\4\24\1\267\24\24\15\0\1\74\1\0"+
+    "\2\24\1\0\26\24\1\270\2\24\15\0\1\74\1\0"+
+    "\2\24\1\0\4\24\1\271\24\24\15\0\1\74\1\0"+
+    "\2\24\1\0\25\24\1\272\3\24\15\0\1\74\1\0"+
+    "\2\24\1\0\2\24\1\273\26\24\15\0\1\74\1\0"+
+    "\2\24\1\0\4\24\1\251\24\24\15\0\1\74\1\0"+
+    "\2\24\1\0\23\24\1\274\5\24\15\0\1\74\1\0"+
+    "\2\24\1\0\3\24\1\275\25\24\15\0\1\74\1\0"+
+    "\2\24\1\0\2\24\1\263\26\24\15\0\1\74\1\0"+
+    "\2\24\1\0\4\24\1\276\24\24\15\0\1\74\1\0"+
+    "\2\24\1\0\1\277\30\24\15\0\1\74\1\0\2\24"+
+    "\1\0\4\24\1\300\24\24\15\0\1\74\1\0\2\24"+
+    "\1\0\22\24\1\111\6\24\15\0\1\74\1\0\2\24"+
+    "\1\0\23\24\1\255\5\24\15\0\1\74\1\0\2\24"+
+    "\1\0\10\24\1\301\20\24\15\0\1\74\1\0\2\24"+
+    "\1\0\23\24\1\302\5\24\15\0\1\74\1\0\2\24"+
+    "\1\0\16\24\1\303\12\24\15\0\1\74\1\0\2\24"+
+    "\1\0\3\24\1\304\25\24\15\0\1\74\1\0\2\24"+
+    "\1\0\4\24\1\305\24\24\15\0\1\74\1\0\2\24"+
+    "\1\0\23\24\1\306\5\24\15\0\1\74\1\0\2\24"+
+    "\1\0\4\24\1\307\24\24\15\0\1\74\1\0\2\24"+
+    "\1\0\1\310\30\24\15\0\1\74\1\0\2\24\1\0"+
+    "\22\24\1\247\6\24\15\0\1\74\1\0\2\24\1\0"+
+    "\5\24\1\311\23\24\15\0\1\74\1\0\2\24\1\0"+
+    "\21\24\1\312\7\24\15\0\1\74\1\0\2\24\1\0"+
+    "\24\24\1\313\4\24\15\0\1\74\1\0\2\24\1\0"+
+    "\21\24\1\255\7\24\15\0\1\74\1\0\2\24\1\0"+
+    "\23\24\1\314\5\24\15\0\1\74\1\0\2\24\1\0"+
+    "\10\24\1\315\20\24\15\0\1\74\1\0\2\24\1\0"+
+    "\3\24\1\316\25\24\15\0\1\74\1\0\2\24\1\0"+
+    "\21\24\1\247\7\24\15\0\1\74\1\0\2\24\1\0"+
+    "\4\24\1\255\24\24\15\0\1\74\1\0\2\24\1\0"+
+    "\4\24\1\317\24\24\15\0\1\74\1\0\2\24\1\0"+
+    "\3\24\1\320\25\24\2\0\2\321\11\0\1\74\1\0"+
+    "\2\24\1\0\31\24\2\0\2\321\17\0\1\322\101\0"+
+    "\1\323\1\0";
 
   private static int [] zzUnpacktrans() {
-    int [] result = new int[6493];
+    int [] result = new int[7224];
     int offset = 0;
     offset = zzUnpacktrans(ZZ_TRANS_PACKED_0, offset, result);
     return result;
@@ -548,13 +565,15 @@ final class AutoSqlSanitizer {
   private static final int [] ZZ_ATTRIBUTE = zzUnpackAttribute();
 
   private static final String ZZ_ATTRIBUTE_PACKED_0 =
-    "\2\0\1\11\4\1\2\11\2\1\1\11\4\1\1\11"+
-    "\24\1\1\0\1\1\1\0\1\1\2\0\1\1\1\11"+
-    "\1\0\1\1\1\11\2\0\34\1\1\0\1\1\2\0"+
-    "\1\11\1\1\2\0\34\1\2\11\102\1\2\0\1\11";
+    "\3\0\1\11\4\1\2\11\2\1\1\11\4\1\1\11"+
+    "\36\1\1\0\1\1\1\0\1\1\2\0\1\1\1\11"+
+    "\1\1\1\11\2\0\34\1\1\0\1\1\1\0\1\1"+
+    "\1\0\1\1\2\0\1\1\2\11\1\0\1\11\1\0"+
+    "\2\11\1\0\1\11\1\1\2\0\34\1\1\0\3\11"+
+    "\35\1\1\11\45\1\2\0\1\11";
 
   private static int [] zzUnpackAttribute() {
-    int [] result = new int[185];
+    int [] result = new int[211];
     int offset = 0;
     offset = zzUnpackAttribute(ZZ_ATTRIBUTE_PACKED_0, offset, result);
     return result;
@@ -652,7 +671,7 @@ final class AutoSqlSanitizer {
     }
   }
 
-  // max length of the sanitized statement - SQLs longer than this will be trimmed
+  // maximum sanitized statement length
   static final int LIMIT = 32 * 1024;
 
   // Match on strings like "IN(?, ?, ...)"
@@ -664,6 +683,49 @@ final class AutoSqlSanitizer {
 
   private void appendCurrentFragment() {
     builder.append(zzBuffer, zzStartRead, zzMarkedPos - zzStartRead);
+  }
+
+  private boolean appendCommentLiteral(boolean sanitize) {
+    String text = yytext();
+    if (text.contains("/*") || text.contains("*/")) {
+      // Quotes have no syntactic meaning in a block comment and cannot hide its delimiters.
+      yypushback(yylength() - 1);
+      appendCurrentFragment();
+    } else if (sanitizeAmbiguousRemainder()) {
+      return true;
+    } else if (sanitize) {
+      builder.append('?');
+    } else {
+      appendCurrentFragment();
+    }
+    return false;
+  }
+
+  private boolean sanitizeAmbiguousRemainder() {
+    if (zzBuffer[zzStartRead] == '$') {
+      return false;
+    }
+    char quote = 0;
+    int backslashes = 0;
+    for (int i = zzStartRead; i < zzMarkedPos; i++) {
+      char c = zzBuffer[i];
+      if (quote == 0) {
+        if (c == '\'' || c == '"' || c == '`') {
+          quote = c;
+        } else if (c == '[') {
+          quote = ']';
+        }
+      } else if (c == quote) {
+        if (quote != ']' && backslashes % 2 != 0) {
+          // Backslash escaping depends on connection settings that the dialect does not describe.
+          builder.append('?');
+          return true;
+        }
+        quote = 0;
+      }
+      backslashes = c == '\\' ? backslashes + 1 : 0;
+    }
+    return false;
   }
 
   private boolean isOverLimit() {
@@ -984,9 +1046,7 @@ final class AutoSqlSanitizer {
   private class Alter extends DdlOperation {}
 
   private SqlQuery getResult() {
-    if (builder.length() > LIMIT) {
-      builder.delete(LIMIT, builder.length());
-    }
+    StringUtils.truncate(builder, LIMIT);
     String fullStatement = builder.toString();
 
     // Normalize all 'in (?, ?, ...)' statements to in (?) to reduce cardinality
@@ -1352,7 +1412,7 @@ final class AutoSqlSanitizer {
           builder.append('?');
           return YYEOF;
             }  // fall though
-            case 186: break;
+            case 212: break;
             default:
         return YYEOF;
         }
@@ -1364,22 +1424,23 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 36: break;
+          case 47: break;
           case 2:
             { builder.append(' ');
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 37: break;
+          case 48: break;
           case 3:
-            { if (!insideComment && !extractionDone) {
+            { if (sanitizeAmbiguousRemainder()) return YYEOF;
+        if (!insideComment && !extractionDone) {
           extractionDone = operation.handleIdentifier();
         }
         appendCurrentFragment();
         if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 38: break;
+          case 49: break;
           case 4:
             { if (!insideComment) {
             markStatementStarted();
@@ -1389,7 +1450,7 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 39: break;
+          case 50: break;
           case 5:
             { if (!insideComment) {
             markStatementStarted();
@@ -1399,8 +1460,21 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 40: break;
+          case 51: break;
           case 6:
+            { // Leave an embedded -- for the line-comment rule.
+          for (int i = zzStartRead + 1; i < zzMarkedPos; i++) {
+            if (zzBuffer[i - 1] == '-' && zzBuffer[i] == '-') {
+              yypushback(zzMarkedPos - i + 1);
+              break;
+            }
+          }
+          appendCurrentFragment();
+          if (isOverLimit()) return YYEOF;
+            }
+          // fall through
+          case 52: break;
+          case 7:
             { if (!insideComment && !extractionDone) {
             markStatementStarted();
             extractionDone = operation.handleComma();
@@ -1409,14 +1483,14 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 41: break;
-          case 7:
+          case 53: break;
+          case 8:
             { builder.append('?');
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 42: break;
-          case 8:
+          case 54: break;
+          case 9:
             { if (!insideComment) {
             statementStart = true;
             passwordSanitizationEnabled = false;
@@ -1426,9 +1500,10 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 43: break;
-          case 9:
-            { if (!insideComment && !extractionDone) {
+          case 55: break;
+          case 10:
+            { if (sanitizeAmbiguousRemainder()) return YYEOF;
+          if (!insideComment && !extractionDone) {
             markStatementStarted();
             extractionDone = operation.handleIdentifier();
           }
@@ -1436,19 +1511,25 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 44: break;
-          case 10:
+          case 56: break;
+          case 11:
             { // Consume non-dollar characters
             }
           // fall through
-          case 45: break;
-          case 11:
+          case 57: break;
+          case 12:
             { // Single dollar sign, not part of a tag - continue consuming
             }
           // fall through
-          case 46: break;
-          case 12:
-            { // Always notify the operation about double-quoted tokens regardless of dialect so
+          case 58: break;
+          case 13:
+            { 
+            }
+          // fall through
+          case 59: break;
+          case 14:
+            { if (sanitizeAmbiguousRemainder()) return YYEOF;
+          // Always notify the operation about double-quoted tokens regardless of dialect so
           // that table name extraction works correctly even when the dialect treats them as
           // string literals. For example, SELECT * FROM "my_table" should extract the table
           // name "my_table" whether or not the dialect sanitizes the token.
@@ -1467,48 +1548,114 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 47: break;
-          case 13:
+          case 60: break;
+          case 15:
+            { if (sanitizeAmbiguousRemainder()) return YYEOF;
+          builder.append('?');
+          if (isOverLimit()) return YYEOF;
+            }
+          // fall through
+          case 61: break;
+          case 16:
             { insideComment = false;
           appendCurrentFragment();
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 48: break;
-          case 14:
+          case 62: break;
+          case 17:
             { // Line comment - append as-is, don't process keywords or sanitize literals
           appendCurrentFragment();
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 49: break;
-          case 15:
+          case 63: break;
+          case 18:
             { insideComment = true;
+          yybegin(BLOCK_COMMENT);
           appendCurrentFragment();
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 50: break;
-          case 16:
+          case 64: break;
+          case 19:
+            { if (appendCommentLiteral(!doubleQuotesAreIdentifiers)) return YYEOF;
+          if (isOverLimit()) return YYEOF;
+            }
+          // fall through
+          case 65: break;
+          case 20:
+            { if (appendCommentLiteral(true)) return YYEOF;
+          if (isOverLimit()) return YYEOF;
+            }
+          // fall through
+          case 66: break;
+          case 21:
+            { insideComment = false;
+          yybegin(YYINITIAL);
+          appendCurrentFragment();
+          if (isOverLimit()) return YYEOF;
+            }
+          // fall through
+          case 67: break;
+          case 22:
+            { // Nested comments are dialect-dependent, so neither interpretation is safe to assume.
+          builder.append('?');
+          return YYEOF;
+            }
+          // fall through
+          case 68: break;
+          case 23:
+            { if (appendCommentLiteral(false)) return YYEOF;
+          if (isOverLimit()) return YYEOF;
+            }
+          // fall through
+          case 69: break;
+          case 24:
+            { if (insideComment) {
+            builder.append("?*/");
+            dollarTag = null;
+            insideComment = false;
+            yybegin(YYINITIAL);
+            if (isOverLimit()) return YYEOF;
+          }
+            }
+          // fall through
+          case 70: break;
+          case 25:
+            { if (insideComment) {
+            builder.append('?');
+            return YYEOF;
+          }
+            }
+          // fall through
+          case 71: break;
+          case 26:
             { // Start of a tagged dollar-quoted string like $tag$...$tag$
           dollarTag = yytext();
           yybegin(DOLLAR_STRING);
             }
           // fall through
-          case 51: break;
-          case 17:
+          case 72: break;
+          case 27:
+            { dollarTag = yytext();
+          yybegin(DOLLAR_STRING);
+            }
+          // fall through
+          case 73: break;
+          case 28:
             { // Check if this is the closing tag
           if (yytext().equals(dollarTag)) {
             builder.append('?');
             dollarTag = null;
-            yybegin(YYINITIAL);
+            yybegin(insideComment ? BLOCK_COMMENT : YYINITIAL);
             if (isOverLimit()) return YYEOF;
           }
           // else: different tag, continue consuming
             }
           // fall through
-          case 52: break;
-          case 18:
+          case 74: break;
+          case 29:
             { if (!insideComment) {
             markStatementStarted();
             setOperation(new Call());
@@ -1517,8 +1664,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 53: break;
-          case 19:
+          case 75: break;
+          case 30:
             { if (!insideComment) {
             markStatementStarted();
             setOperation(new Drop());
@@ -1527,8 +1674,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 54: break;
-          case 20:
+          case 76: break;
+          case 31:
             { if (!insideComment && !extractionDone) {
             markStatementStarted();
             if (operation == NoOp.INSTANCE) {
@@ -1542,8 +1689,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 55: break;
-          case 21:
+          case 77: break;
+          case 32:
             { if (!insideComment && !extractionDone) {
             markStatementStarted();
             extractionDone = operation.handleInto();
@@ -1552,8 +1699,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 56: break;
-          case 22:
+          case 78: break;
+          case 33:
             { if (!insideComment && !extractionDone) {
             markStatementStarted();
             extractionDone = operation.handleJoin();
@@ -1562,8 +1709,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 57: break;
-          case 23:
+          case 79: break;
+          case 34:
             { if (!insideComment && !extractionDone) {
             markStatementStarted();
             extractionDone = operation.handleNext();
@@ -1572,8 +1719,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 58: break;
-          case 24:
+          case 80: break;
+          case 35:
             { if (!insideComment && !extractionDone) {
             markStatementStarted();
             if (operation.expectingOperationTarget()) {
@@ -1586,8 +1733,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 59: break;
-          case 25:
+          case 81: break;
+          case 36:
             { if (!insideComment) {
             markStatementStarted();
             setOperation(new Alter());
@@ -1596,8 +1743,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 60: break;
-          case 26:
+          case 82: break;
+          case 37:
             { if (!insideComment) {
             if (statementStart) {
               passwordSanitizationEnabled = true;
@@ -1609,8 +1756,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 61: break;
-          case 27:
+          case 83: break;
+          case 38:
             { if (!insideComment) {
             if (statementStart) {
               identifiedBySanitizationEnabled = true;
@@ -1621,8 +1768,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 62: break;
-          case 28:
+          case 84: break;
+          case 39:
             { if (!insideComment) {
             markStatementStarted();
             setOperation(new Merge());
@@ -1631,8 +1778,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 63: break;
-          case 29:
+          case 85: break;
+          case 40:
             { if (!insideComment) {
             markStatementStarted();
             setOperation(new Create());
@@ -1641,8 +1788,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 64: break;
-          case 30:
+          case 86: break;
+          case 41:
             { if (!insideComment) {
             markStatementStarted();
             setOperation(new Delete());
@@ -1651,8 +1798,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 65: break;
-          case 31:
+          case 87: break;
+          case 42:
             { if (!insideComment) {
             markStatementStarted();
             setOperation(new Insert());
@@ -1661,8 +1808,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 66: break;
-          case 32:
+          case 88: break;
+          case 43:
             { if (!insideComment) {
             markStatementStarted();
             setOperation(new Select());
@@ -1671,8 +1818,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 67: break;
-          case 33:
+          case 89: break;
+          case 44:
             { if (!insideComment) {
             markStatementStarted();
             setOperation(new Update());
@@ -1681,8 +1828,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 68: break;
-          case 34:
+          case 90: break;
+          case 45:
             { boolean passwordTokenIsIdentifier = false;
           if (!insideComment && !extractionDone) {
             markStatementStarted();
@@ -1697,8 +1844,8 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 69: break;
-          case 35:
+          case 91: break;
+          case 46:
             { if (!insideComment) {
             markStatementStarted();
           }
@@ -1710,7 +1857,7 @@ final class AutoSqlSanitizer {
           if (isOverLimit()) return YYEOF;
             }
           // fall through
-          case 70: break;
+          case 92: break;
           default:
             zzScanError(ZZ_NO_MATCH);
         }

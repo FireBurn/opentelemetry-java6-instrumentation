@@ -21,6 +21,11 @@ public final class Arguments {
     return new Arguments(values);
   }
 
+  /** The name is only a display label in JUnit 5; the shim ignores it. */
+  public static Arguments argumentSet(String name, Object... values) {
+    return new Arguments(values);
+  }
+
   public Object[] get() {
     return values;
   }

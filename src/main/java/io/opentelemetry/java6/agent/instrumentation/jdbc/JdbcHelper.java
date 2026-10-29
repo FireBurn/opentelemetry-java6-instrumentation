@@ -292,9 +292,9 @@ public final class JdbcHelper {
         put(builder, "db.operation", operation);
         put(builder, "db.sql.table", table);
       }
-      put(builder, "server.address", info.getServerAddress());
-      if (info.getServerAddress() != null && info.getServerPort() != null) {
-        builder.setAttribute("server.port", info.getServerPort().longValue());
+      put(builder, "server.address", info.getLegacyServerAddress());
+      if (info.getLegacyServerAddress() != null && info.getLegacyServerPort() != null) {
+        builder.setAttribute("server.port", info.getLegacyServerPort().longValue());
       }
       Span span = builder.startSpan();
       return new AdviceScope(span, Context.current().with(span).makeCurrent());

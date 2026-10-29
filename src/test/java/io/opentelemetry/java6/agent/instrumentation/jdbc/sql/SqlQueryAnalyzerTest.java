@@ -9,6 +9,7 @@ import static io.opentelemetry.java6.agent.instrumentation.jdbc.sql.SqlDialect.D
 import static io.opentelemetry.java6.agent.instrumentation.jdbc.sql.SqlDialect.DOUBLE_QUOTES_ARE_STRING_LITERALS;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 import java.util.Random;
 import java.util.List;
@@ -16,9 +17,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @SuppressWarnings("deprecation") // testing deprecated old db semconv accessors
-/** Ported from the main project (v2.31.1); runs on Java 6 via MiniJupiter. */
+/** Ported from the main project (v2.33.1); runs on Java 6 via MiniJupiter. */
 class SqlQueryAnalyzerTest {
 
   private static final Analyzer ANALYZER = new Analyzer();
@@ -205,6 +207,357 @@ class SqlQueryAnalyzerTest {
             "UPDATE users"));
   }
 
+  @ParameterizedTest
+  @MethodSource("blockCommentArgs")
+  void sanitizeBlockComments(String original, String expected, String expectedQuerySummary) {
+    SqlQuery result = analyze(original);
+
+    assertThat(result.getQueryText()).isEqualTo(expected);
+    assertThat(querySummary(result))
+        .isEqualTo(emitStableDatabaseSemconv() ? expectedQuerySummary : null);
+  }
+
+  private static List<Arguments> blockCommentArgs() {
+    return java.util.Arrays.asList(
+        argumentSet(
+            "nested comment before an apostrophe",
+            "SELECT /* outer /* inner */ don't */ 'secret'",
+            "SELECT /* outer ?",
+            "SELECT"),
+        argumentSet(
+            "multiple nested comments before the operation",
+            "/* outer /* middle /* inner */ */ */ SELECT 'secret'",
+            "/* outer ?",
+            null),
+        argumentSet(
+            "nested opener inside a quoted comment value",
+            "SELECT /* 'text /* inner */ text' */ 'secret'",
+            "SELECT /* 'text ?",
+            "SELECT"),
+        argumentSet(
+            "non-nesting dialect closes at the first terminator",
+            "SELECT /* outer /* inner */ 'text */ secret'",
+            "SELECT /* outer ?",
+            "SELECT"),
+        argumentSet(
+            "line comment marker inside a block comment",
+            "SELECT /* -- ignored */ 'secret'",
+            "SELECT /* -- ignored */ ?",
+            "SELECT"),
+        argumentSet(
+            "double quote before the comment terminator",
+            "SELECT /* \"ignored */ 'secret' AS \"alias\"",
+            "SELECT /* \"ignored */ ? AS ?",
+            "SELECT"),
+        argumentSet(
+            "quoted identifier before the comment terminator",
+            "SELECT /* schema.\"ignored */ 'secret' AS \"alias\"",
+            "SELECT /* schema.\"ignored */ ? AS ?",
+            "SELECT"),
+        argumentSet(
+            "backtick before the comment terminator",
+            "SELECT /* `ignored */ 'secret' AS `alias`",
+            "SELECT /* `ignored */ ? AS `alias`",
+            "SELECT"),
+        argumentSet(
+            "bracket before the comment terminator",
+            "SELECT /* [ignored */ 'secret' AS [alias]",
+            "SELECT /* [ignored */ ? AS [alias]",
+            "SELECT"),
+        argumentSet(
+            "dollar quotes before the comment terminator",
+            "SELECT /* $$ ignored */ 'secret', $$other$$",
+            "SELECT /* $$ ignored */ ?, ?",
+            "SELECT"),
+        argumentSet(
+            "dollar tag before the comment terminator",
+            "SELECT /* $tag$ ignored */ 'secret'",
+            "SELECT /* ?*/ ?",
+            "SELECT"),
+        argumentSet(
+            "nested opener inside a dollar-quoted comment value",
+            "SELECT /* $tag$ /* inner */ $tag$ */ 'secret'",
+            "SELECT /* ?",
+            "SELECT"),
+        argumentSet(
+            "sanitized comment values",
+            "SELECT /* user='secret' id=42 value=$tag$secret$tag$ */ 'secret' FROM users",
+            "SELECT /* user=? id=? value=? */ ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "comment delimiters inside a literal",
+            "SELECT '/* outer /* inner */ */' FROM users",
+            "SELECT ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "comment delimiters inside a dollar-quoted literal",
+            "SELECT $tag$/* outer /* inner */ */$tag$ FROM users",
+            "SELECT ? FROM users",
+            "SELECT users"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {1024, 4096, 8192, 16384})
+  void bracketsInCommentDoNotHideTerminator(int count) {
+    String comment = "/* " + repeat('[', count) + " */";
+
+    SqlQuery result = analyze("SELECT " + comment + " 'secret' AS [alias]");
+
+    assertThat(result.getQueryText()).isEqualTo("SELECT " + comment + " ? AS [alias]");
+    assertThat(querySummary(result)).isEqualTo(emitStableDatabaseSemconv() ? "SELECT" : null);
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {1024, 4096, 8192, 16384})
+  void unterminatedBracketIdentifiersAreRedacted(int count) {
+    SqlQuery result = analyze("SELECT * FROM " + repeat('[', count) + " 'secret'");
+
+    assertThat(result.getQueryText())
+        .isEqualTo(
+            emitStableDatabaseSemconv()
+                ? "SELECT * FROM ?"
+                : "SELECT * FROM " + repeat('[', count) + " ?");
+    assertThat(querySummary(result)).isEqualTo(emitStableDatabaseSemconv() ? "SELECT" : null);
+    assertThat(result.getCollectionName()).isNull();
+  }
+
+  @ParameterizedTest
+  @MethodSource("bracketIdentifierArgs")
+  void sanitizeBracketIdentifiers(
+      String original, String expected, String expectedLegacy, String expectedQuerySummary) {
+    SqlQuery result = analyze(original);
+
+    assertThat(result.getQueryText())
+        .isEqualTo(emitStableDatabaseSemconv() ? expected : expectedLegacy);
+    assertThat(querySummary(result))
+        .isEqualTo(emitStableDatabaseSemconv() ? expectedQuerySummary : null);
+  }
+
+  private static List<Arguments> bracketIdentifierArgs() {
+    return java.util.Arrays.asList(
+        argumentSet("empty unfinished identifier", "SELECT [", "SELECT ?", "SELECT [", "SELECT"),
+        argumentSet(
+            "unfinished identifier contains a literal",
+            "SELECT [unfinished 'secret'",
+            "SELECT ?",
+            "SELECT [unfinished ?",
+            "SELECT"),
+        argumentSet(
+            "unfinished identifier after a complete statement",
+            "SELECT * FROM users; SELECT [unfinished 'secret'",
+            "SELECT * FROM users; SELECT ?",
+            "SELECT * FROM users; SELECT [unfinished ?",
+            "SELECT users; SELECT"),
+        argumentSet(
+            "closing bracket takes precedence",
+            "SELECT [[column], 'secret' FROM [users]",
+            "SELECT [[column], ? FROM [users]",
+            "SELECT [[column], ? FROM [users]",
+            "SELECT [users]"),
+        argumentSet(
+            "qualified bracket identifiers",
+            "SELECT * FROM [schema].[[table] WHERE value = 'secret'",
+            "SELECT * FROM [schema].[[table] WHERE value = ?",
+            "SELECT * FROM [schema].[[table] WHERE value = ?",
+            "SELECT [schema].[[table]"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {1024, 4096, 8192, 16384})
+  void numericPrefixesInCommentDoNotHideTerminator(int count) {
+    String comment = "/* " + repeat('+', count) + " */";
+
+    SqlQuery result = analyze("SELECT " + comment + " 'secret' FROM users");
+
+    assertThat(result.getQueryText()).isEqualTo("SELECT " + comment + " ? FROM users");
+    assertThat(querySummary(result))
+        .isEqualTo(emitStableDatabaseSemconv() ? "SELECT users" : null);
+  }
+
+  @ParameterizedTest
+  @MethodSource("numericPrefixArgs")
+  void sanitizeNumericPrefixes(String original, String expected, String expectedQuerySummary) {
+    SqlQuery result = analyze(original);
+
+    assertThat(result.getQueryText()).isEqualTo(expected);
+    assertThat(querySummary(result))
+        .isEqualTo(emitStableDatabaseSemconv() ? expectedQuerySummary : null);
+  }
+
+  private static List<Arguments> numericPrefixArgs() {
+    return java.util.Arrays.asList(
+        argumentSet(
+            "numeric prefix without a number",
+            "SELECT .+-.+- 'secret' FROM users",
+            "SELECT .+-.+- ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "numeric prefix followed by a number",
+            "SELECT +++123, 'secret' FROM users",
+            "SELECT ?, ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "number inside a comment",
+            "SELECT /* +++123 */ 'secret' FROM users",
+            "SELECT /* ? */ ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "line comment embedded in a numeric prefix",
+            "SELECT +-- FROM ignored\n'secret' FROM users",
+            "SELECT +-- FROM ignored ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "line comment without a space after its marker",
+            "SELECT +--ignored\n'secret'",
+            "SELECT +--ignored ?",
+            "SELECT"),
+        argumentSet(
+            "mixed numeric prefix before a line comment",
+            "SELECT .+-+-- FROM ignored\r\n'secret' FROM users",
+            "SELECT .+-+-- FROM ignored ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "line comment marker inside a block comment",
+            "SELECT /* +-.-+-- ignored */ 'secret' FROM users",
+            "SELECT /* +-.-+-- ignored */ ? FROM users",
+            "SELECT users"));
+  }
+
+  @ParameterizedTest
+  @MethodSource("backslashArgs")
+  void sanitizeBackslashes(String original, String expected, String expectedQuerySummary) {
+    for (SqlDialect dialect :
+        new SqlDialect[] {DOUBLE_QUOTES_ARE_STRING_LITERALS, DOUBLE_QUOTES_ARE_IDENTIFIERS}) {
+      SqlQuery result = analyze(original, dialect);
+
+      assertThat(result.getQueryText()).isEqualTo(expected);
+      assertThat(querySummary(result))
+          .isEqualTo(emitStableDatabaseSemconv() ? expectedQuerySummary : null);
+    }
+  }
+
+  private static List<Arguments> backslashArgs() {
+    return java.util.Arrays.asList(
+        argumentSet(
+            "backslash-escaped apostrophe",
+            "SELECT name FROM users WHERE name = 'O\\'Brien' AND password = 'secret'",
+            "SELECT name FROM users WHERE name = ?",
+            "SELECT users"),
+        argumentSet(
+            "standard string ending with a backslash",
+            "SELECT name FROM users WHERE path = 'C:\\' AND password = 'secret'",
+            "SELECT name FROM users WHERE path = ?",
+            "SELECT users"),
+        argumentSet(
+            "insert with a backslash-escaped apostrophe",
+            "INSERT INTO users(name, password) VALUES('O\\'Brien', 'secret')",
+            "INSERT INTO users(name, password) VALUES(?",
+            "INSERT users"),
+        argumentSet(
+            "PostgreSQL escape string", "SELECT E'O\\'Brien', 'secret'", "SELECT E?", "SELECT"),
+        argumentSet(
+            "PostgreSQL escape string continuation",
+            "SELECT e'first'\n'O\\'Brien' FROM users",
+            "SELECT e? ?",
+            "SELECT"),
+        argumentSet(
+            "backslash-escaped double quote",
+            "SELECT name FROM users WHERE name = \"O\\\"Brien\" AND password = 'secret'",
+            "SELECT name FROM users WHERE name = ?",
+            "SELECT users"),
+        argumentSet(
+            "double-quoted standard string ending with a backslash",
+            "SELECT name FROM users WHERE path = \"C:\\\" AND password = 'secret'",
+            "SELECT name FROM users WHERE path = ?",
+            "SELECT users"),
+        argumentSet(
+            "ambiguous quote in a qualified identifier",
+            "SELECT * FROM schema.\"O\\\"Brien' WHERE password='secret\"",
+            "SELECT * FROM ?",
+            "SELECT"),
+        argumentSet(
+            "backslash-escaped backtick",
+            "SELECT * FROM `O\\`Brien' WHERE password='secret`",
+            "SELECT * FROM ?",
+            "SELECT"),
+        argumentSet(
+            "odd backslash run", "SELECT 'C:\\\\\\', 'secret' FROM users", "SELECT ?", "SELECT"),
+        argumentSet(
+            "backslash before doubled apostrophes",
+            "SELECT 'a\\''b', 'secret' FROM users",
+            "SELECT ?",
+            "SELECT"),
+        argumentSet(
+            "ambiguous quote in a comment value",
+            "SELECT /* value='O\\'Brien' password='secret' */ 'secret'",
+            "SELECT /* value=?",
+            "SELECT"),
+        argumentSet(
+            "SQL keywords inside an escaped literal",
+            "SELECT 'O\\' FROM secret_table WHERE value = ' FROM public_table",
+            "SELECT ?",
+            "SELECT"),
+        argumentSet(
+            "backslash away from a quote",
+            "SELECT 'C:\\folder', 'secret' FROM users",
+            "SELECT ?, ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "even backslash run",
+            "SELECT 'C:\\\\', 'secret' FROM users",
+            "SELECT ?, ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "longer even backslash run",
+            "SELECT 'C:\\\\\\\\', 'secret' FROM users",
+            "SELECT ?, ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "even backslash run before doubled apostrophes",
+            "SELECT 'a\\\\''b', 'secret' FROM users",
+            "SELECT ?, ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "backslash before a different quote",
+            "SELECT 'a\\\"b', 'secret' FROM users",
+            "SELECT ?, ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "backslashes inside dollar quotes",
+            "SELECT $tag$O\\'Brien$tag$, 'secret' FROM users",
+            "SELECT ?, ? FROM users",
+            "SELECT users"),
+        argumentSet(
+            "backslash inside a bracket-quoted identifier",
+            "SELECT [C:\\] FROM [users]",
+            "SELECT [C:\\] FROM [users]",
+            "SELECT [users]"));
+  }
+
+  @Test
+  void ambiguousQuotingDoesNotPopulateTargets() {
+    SqlQuery result = analyze("SELECT 'O\\' FROM secret_table WHERE value = ' FROM public_table");
+
+    assertThat(result.getQueryText()).isEqualTo("SELECT ?");
+    assertThat(querySummary(result)).isEqualTo(emitStableDatabaseSemconv() ? "SELECT" : null);
+    assertThat(result.getCollectionName()).isNull();
+    assertThat(result.getStoredProcedureName()).isNull();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void unambiguousDoubleQuotesRetainDialectBehavior(boolean identifiers) {
+    SqlQuery result =
+        analyze(
+            "SELECT * FROM \"C:\\\\\"",
+            identifiers ? DOUBLE_QUOTES_ARE_IDENTIFIERS : DOUBLE_QUOTES_ARE_STRING_LITERALS);
+
+    assertThat(result.getQueryText())
+        .isEqualTo(identifiers ? "SELECT * FROM \"C:\\\\\"" : "SELECT * FROM ?");
+    assertThat(querySummary(result))
+        .isEqualTo(emitStableDatabaseSemconv() ? "SELECT \"C:\\\\\"" : null);
+  }
+
   @Test
   void veryLongSelectStatementsAreOk() {
     StringBuilder sb = new StringBuilder("SELECT * FROM table WHERE");
@@ -294,6 +647,15 @@ class SqlQueryAnalyzerTest {
   }
 
   @Test
+  void queryTextTruncationDoesNotSplitSurrogatePair() {
+    String beforePair = repeat('A', AutoSqlSanitizer.LIMIT - 1);
+
+    SqlQuery result = analyze(beforePair + "😀");
+
+    assertThat(result.getQueryText()).isEqualTo(beforePair);
+  }
+
+  @Test
   void randomBytesDontCauseExceptionsOrTimeouts() {
     Random r = new Random(0);
     for (int i = 0; i < 1000; i++) {
@@ -365,6 +727,16 @@ class SqlQueryAnalyzerTest {
         .isEqualTo(
             "SELECT very_long_table_name_0 very_long_table_name_1 very_long_table_name_2 very_long_table_name_3 very_long_table_name_4 very_long_table_name_5 very_long_table_name_6 very_long_table_name_7 very_long_table_name_8 very_long_table_name_9");
     assertThat(result.length()).isEqualTo(236);
+  }
+
+  @Test
+  void querySummaryTruncationDoesNotSplitSurrogatePair() {
+    assumeTrue(emitStableDatabaseSemconv());
+    String beforePair = repeat('A', 254);
+
+    String summary = querySummary(createWithSummary(null, null, beforePair + "😀"));
+
+    assertThat(summary).isEqualTo(beforePair);
   }
 
   @ParameterizedTest
@@ -452,6 +824,20 @@ class SqlQueryAnalyzerTest {
         Arguments.of("SELECT DEADBEEF", "SELECT DEADBEEF", "SELECT"),
         Arguments.of("SELECT 123-45-6789", "SELECT ?", "SELECT"),
         Arguments.of("SELECT 1/2/34", "SELECT ?/?/?", "SELECT"),
+
+        // An apostrophe in a block comment doesn't start a string
+        Arguments.of(
+            "SELECT name FROM users /* don't cache */ WHERE password = 'hunter2'",
+            "SELECT name FROM users /* don't cache */ WHERE password = ?",
+            "SELECT users"),
+        Arguments.of(
+            "SELECT a FROM t /* it's */ WHERE b = 'x' AND c = 'y'",
+            "SELECT a FROM t /* it's */ WHERE b = ? AND c = ?",
+            "SELECT t"),
+        Arguments.of(
+            "SELECT a FROM t /* user='bob' */ WHERE b = 'x'",
+            "SELECT a FROM t /* user=? */ WHERE b = ?",
+            "SELECT t"),
 
         // Basic ' strings
         Arguments.of(
@@ -1424,5 +1810,13 @@ class SqlQueryAnalyzerTest {
     SqlQuery analyzeWithSummary(String sql, SqlDialect dialect) {
       return SqlQueryAnalyzer.analyze(sql, dialect);
     }
+  }
+
+  private static String repeat(char value, int count) {
+    StringBuilder result = new StringBuilder(count);
+    for (int i = 0; i < count; i++) {
+      result.append(value);
+    }
+    return result.toString();
   }
 }

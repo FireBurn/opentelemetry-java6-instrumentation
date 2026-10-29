@@ -5,6 +5,8 @@
 
 package io.opentelemetry.java6.agent.instrumentation.jdbc.internal.dbinfo;
 
+import io.opentelemetry.java6.agent.instrumentation.jdbc.internal.target.DbServerTarget;
+
 /**
  * Parsed JDBC connection information. A hand-written equivalent of the main project's AutoValue
  * {@code io.opentelemetry.instrumentation.jdbc.internal.dbinfo.DbInfo} (same accessors, builder
@@ -21,8 +23,9 @@ public final class DbInfo {
   private final String dbUser;
   private final String dbName;
   private final String dbNamespace;
-  private final String serverAddress;
-  private final Integer serverPort;
+  private final String legacyServerAddress;
+  private final Integer legacyServerPort;
+  private final DbServerTarget configuredServerTarget;
 
   private DbInfo(Builder b) {
     this.dbSystemName = b.dbSystemName;
@@ -32,8 +35,9 @@ public final class DbInfo {
     this.dbUser = b.dbUser;
     this.dbName = b.dbName;
     this.dbNamespace = b.dbNamespace;
-    this.serverAddress = b.serverAddress;
-    this.serverPort = b.serverPort;
+    this.legacyServerAddress = b.legacyServerAddress;
+    this.legacyServerPort = b.legacyServerPort;
+    this.configuredServerTarget = b.configuredServerTarget;
   }
 
   public static Builder builder() {
@@ -71,12 +75,22 @@ public final class DbInfo {
     return dbNamespace;
   }
 
-  public String getServerAddress() {
-    return serverAddress;
+  /** The parser's single host, including defaults, used for legacy telemetry and pool names. */
+  public String getLegacyServerAddress() {
+    return legacyServerAddress;
   }
 
-  public Integer getServerPort() {
-    return serverPort;
+  /** The parser's single port, including defaults, used for legacy telemetry and pool names. */
+  public Integer getLegacyServerPort() {
+    return legacyServerPort;
+  }
+
+  /**
+   * The logical configured target for stable telemetry, or {@code null} when unavailable. This is
+   * not the endpoint that handled an individual query.
+   */
+  public DbServerTarget getConfiguredServerTarget() {
+    return configuredServerTarget;
   }
 
   public String getSystem() {
@@ -96,11 +110,11 @@ public final class DbInfo {
   }
 
   public String getHost() {
-    return serverAddress;
+    return legacyServerAddress;
   }
 
   public Integer getPort() {
-    return serverPort;
+    return legacyServerPort;
   }
 
   public Builder toBuilder() {
@@ -112,8 +126,9 @@ public final class DbInfo {
         .dbUser(dbUser)
         .dbName(dbName)
         .dbNamespace(dbNamespace)
-        .serverAddress(serverAddress)
-        .serverPort(serverPort);
+        .legacyServerAddress(legacyServerAddress)
+        .legacyServerPort(legacyServerPort)
+        .configuredServerTarget(configuredServerTarget);
   }
 
   @Override
@@ -132,15 +147,16 @@ public final class DbInfo {
         && eq(dbUser, that.dbUser)
         && eq(dbName, that.dbName)
         && eq(dbNamespace, that.dbNamespace)
-        && eq(serverAddress, that.serverAddress)
-        && eq(serverPort, that.serverPort);
+        && eq(legacyServerAddress, that.legacyServerAddress)
+        && eq(legacyServerPort, that.legacyServerPort)
+        && eq(configuredServerTarget, that.configuredServerTarget);
   }
 
   @Override
   public int hashCode() {
     Object[] fields = {
       dbSystemName, dbSystem, subtype, dbConnectionString, dbUser, dbName, dbNamespace,
-      serverAddress, serverPort
+      legacyServerAddress, legacyServerPort, configuredServerTarget
     };
     return java.util.Arrays.hashCode(fields);
   }
@@ -149,7 +165,7 @@ public final class DbInfo {
   public String toString() {
     return "DbInfo{system=" + dbSystem + ", subtype=" + subtype + ", connectionString="
         + dbConnectionString + ", user=" + dbUser + ", name=" + dbName + ", host="
-        + serverAddress + ", port=" + serverPort + "}";
+        + legacyServerAddress + ", port=" + legacyServerPort + ", target=" + configuredServerTarget + "}";
   }
 
   private static boolean eq(Object a, Object b) {
@@ -165,8 +181,9 @@ public final class DbInfo {
     private String dbUser;
     private String dbName;
     private String dbNamespace;
-    private String serverAddress;
-    private Integer serverPort;
+    private String legacyServerAddress;
+    private Integer legacyServerPort;
+    private DbServerTarget configuredServerTarget;
 
     Builder() {}
 
@@ -205,13 +222,13 @@ public final class DbInfo {
       return this;
     }
 
-    public Builder serverAddress(String serverAddress) {
-      this.serverAddress = serverAddress;
+    public Builder legacyServerAddress(String legacyServerAddress) {
+      this.legacyServerAddress = legacyServerAddress;
       return this;
     }
 
-    public Builder serverPort(Integer serverPort) {
-      this.serverPort = serverPort;
+    public Builder legacyServerPort(Integer legacyServerPort) {
+      this.legacyServerPort = legacyServerPort;
       return this;
     }
 
@@ -231,12 +248,17 @@ public final class DbInfo {
       return dbNamespace(name).dbName(name);
     }
 
+    public Builder configuredServerTarget(DbServerTarget configuredServerTarget) {
+      this.configuredServerTarget = configuredServerTarget;
+      return this;
+    }
+
     public Builder host(String host) {
-      return serverAddress(host);
+      return legacyServerAddress(host);
     }
 
     public Builder port(Integer port) {
-      return serverPort(port);
+      return legacyServerPort(port);
     }
 
     public DbInfo build() {

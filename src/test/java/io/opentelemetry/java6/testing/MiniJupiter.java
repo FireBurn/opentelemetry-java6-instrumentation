@@ -80,6 +80,9 @@ public final class MiniJupiter {
       for (int i = 0; i < values.ints().length; i++) {
         result.add(new Object[] {Integer.valueOf(values.ints()[i])});
       }
+      for (int i = 0; i < values.booleans().length; i++) {
+        result.add(new Object[] {Boolean.valueOf(values.booleans()[i])});
+      }
     }
     CsvSource csv = m.getAnnotation(CsvSource.class);
     if (csv != null) {

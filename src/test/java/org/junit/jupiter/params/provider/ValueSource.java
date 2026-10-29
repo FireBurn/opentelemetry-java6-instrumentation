@@ -17,4 +17,6 @@ public @interface ValueSource {
   String[] strings() default {};
 
   int[] ints() default {};
+
+  boolean[] booleans() default {};
 }

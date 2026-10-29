@@ -49,6 +49,15 @@ public class ObjectAssert {
     return this;
   }
 
+  public ObjectAssert hasSameHashCodeAs(Object other) {
+    int actualHash = actual == null ? 0 : actual.hashCode();
+    int otherHash = other == null ? 0 : other.hashCode();
+    if (actualHash != otherHash) {
+      throw fail("expected hash code <" + otherHash + "> but was: <" + actualHash + ">");
+    }
+    return this;
+  }
+
   public ObjectAssert isNotEqualTo(Object other) {
     if (eq(actual, other)) {
       throw fail("expected not to be: <" + other + ">");
