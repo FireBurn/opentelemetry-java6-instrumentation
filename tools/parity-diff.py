@@ -196,5 +196,27 @@ for key in sorted(k1 & k2):
         for p in sorted(b - a):
             print('      only-java6   : %s' % (p,))
 
+# --- schema URLs (resource and per scope, for spans and metrics) ---
+def schema_urls(path):
+    found = collections.defaultdict(set)
+    for line in open(path):
+        if not line.startswith('{'):
+            continue
+        rec = json.loads(line)
+        if rec['t'] in ('span', 'metric') and rec['name'] in ignored_metrics:
+            continue
+        found[(rec['t'], rec.get('scope'))].add(rec.get('schemaUrl', ''))
+    return found
+
+u1, u2 = schema_urls(official_path), schema_urls(java6_path)
+schema_diffs = [k for k in sorted(set(u1) & set(u2), key=str) if u1[k] != u2[k]]
+if schema_diffs:
+    ok = False
+    print('SCHEMA URLS DIFF:')
+    for k in schema_diffs:
+        print('  %-8s %-45s official=%s java6=%s' % (k[0], k[1], sorted(u1[k]), sorted(u2[k])))
+else:
+    print('SCHEMA URLS: identical (%d scopes)' % len(set(u1) & set(u2)))
+
 print('PARITY OK' if ok else 'PARITY DIFF FOUND')
 sys.exit(0 if ok else 1)

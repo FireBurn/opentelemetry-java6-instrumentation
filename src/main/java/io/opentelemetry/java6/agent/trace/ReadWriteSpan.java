@@ -38,6 +38,7 @@ final class ReadWriteSpan implements Span {
   private final SpanContext context;
   private final String parentSpanId;
   private final String scopeName;
+  private final String schemaUrl;
   private final long startNanos;
   private final BatchSpanProcessor processor;
   private final Map<String, Object> attributes;
@@ -55,6 +56,7 @@ final class ReadWriteSpan implements Span {
       SpanContext context,
       String parentSpanId,
       String scopeName,
+      String schemaUrl,
       Map<String, Object> attributes,
       BatchSpanProcessor processor) {
     this.name = name;
@@ -62,6 +64,7 @@ final class ReadWriteSpan implements Span {
     this.context = context;
     this.parentSpanId = parentSpanId;
     this.scopeName = scopeName;
+    this.schemaUrl = schemaUrl;
     this.processor = processor;
     this.startNanos = nowEpochNanos();
     this.attributes = new LinkedHashMap<String, Object>();
@@ -180,6 +183,7 @@ final class ReadWriteSpan implements Span {
               parentSpanId,
               context.traceState,
               scopeName,
+              schemaUrl,
               startNanos,
               nowEpochNanos(),
               attributes,

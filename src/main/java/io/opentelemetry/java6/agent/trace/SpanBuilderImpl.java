@@ -17,6 +17,7 @@ final class SpanBuilderImpl implements SpanBuilder {
   private Context parent;
   private SpanKind kind = SpanKind.INTERNAL;
   private String scopeName = "io.opentelemetry.java6.agent";
+  private String schemaUrl;
   private final Map<String, Object> attributes = new LinkedHashMap<String, Object>();
 
   SpanBuilderImpl(String name, Tracer tracer) {
@@ -70,6 +71,11 @@ final class SpanBuilderImpl implements SpanBuilder {
     return this;
   }
 
+  public SpanBuilder setSchemaUrl(String schemaUrl) {
+    this.schemaUrl = schemaUrl;
+    return this;
+  }
+
   public Span startSpan() {
     Context parentContext = parent != null ? parent : Context.current();
     SpanContext parentSpanContext = parentContext.spanContext();
@@ -89,6 +95,7 @@ final class SpanBuilderImpl implements SpanBuilder {
         context,
         parentSpanContext == null ? null : parentSpanContext.spanId,
         scopeName,
+        schemaUrl,
         attributes,
         tracer.processor);
   }

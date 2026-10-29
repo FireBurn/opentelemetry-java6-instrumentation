@@ -27,5 +27,11 @@ public interface SpanBuilder {
   /** Sets the instrumentation scope name (for example {@code io.opentelemetry.jdbc}). */
   SpanBuilder setScopeName(String scopeName);
 
+  /**
+   * Overrides the schema URL of the span's scope (by default the one mapped from the scope name by
+   * {@code SchemaUrls.forScope}).
+   */
+  SpanBuilder setSchemaUrl(String schemaUrl);
+
   Span startSpan();
 }

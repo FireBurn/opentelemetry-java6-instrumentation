@@ -81,12 +81,13 @@ public final class OtlpFullDumper {
 
   private static void dumpTraces(ExportTraceServiceRequest request) {
     for (ResourceSpans rs : request.getResourceSpansList()) {
-      resource(rs.getResource());
+      resource(rs.getResource(), rs.getSchemaUrl());
       for (ScopeSpans ss : rs.getScopeSpansList()) {
         for (Span span : ss.getSpansList()) {
           StringBuilder sb = new StringBuilder("{\"t\":\"span\"");
           sb.append(",\"scope\":").append(q(ss.getScope().getName()));
           sb.append(",\"scopeVersion\":").append(q(ss.getScope().getVersion()));
+          sb.append(",\"schemaUrl\":").append(q(ss.getSchemaUrl()));
           sb.append(",\"name\":").append(q(span.getName()));
           sb.append(",\"kind\":").append(q(span.getKind().name().replace("SPAN_KIND_", "")));
           sb.append(",\"traceId\":").append(q(hex(span.getTraceId())));
@@ -111,12 +112,13 @@ public final class OtlpFullDumper {
 
   private static void dumpMetrics(ExportMetricsServiceRequest request) {
     for (ResourceMetrics rm : request.getResourceMetricsList()) {
-      resource(rm.getResource());
+      resource(rm.getResource(), rm.getSchemaUrl());
       for (ScopeMetrics sm : rm.getScopeMetricsList()) {
         for (Metric m : sm.getMetricsList()) {
           StringBuilder sb = new StringBuilder("{\"t\":\"metric\"");
           sb.append(",\"scope\":").append(q(sm.getScope().getName()));
           sb.append(",\"scopeVersion\":").append(q(sm.getScope().getVersion()));
+          sb.append(",\"schemaUrl\":").append(q(sm.getSchemaUrl()));
           sb.append(",\"name\":").append(q(m.getName()));
           sb.append(",\"unit\":").append(q(m.getUnit()));
           sb.append(",\"description\":").append(q(m.getDescription()));
@@ -170,8 +172,9 @@ public final class OtlpFullDumper {
     }
   }
 
-  private static void resource(Resource resource) {
-    OUT.println("{\"t\":\"resource\",\"attrs\":" + attrs(resource.getAttributesList()) + "}");
+  private static void resource(Resource resource, String schemaUrl) {
+    OUT.println("{\"t\":\"resource\",\"schemaUrl\":" + q(schemaUrl) + ",\"attrs\":"
+        + attrs(resource.getAttributesList()) + "}");
   }
 
   private static String attrs(List<KeyValue> kvs) {

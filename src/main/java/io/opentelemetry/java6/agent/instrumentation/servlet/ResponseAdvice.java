@@ -49,6 +49,7 @@ public final class ResponseAdvice {
           Tracer.getInstance()
               .spanBuilder(simpleName + "." + methodName, ServletHelper.SCOPE_NAME)
               .setParent(parent)
+              .setSchemaUrl(io.opentelemetry.java6.agent.SchemaUrls.V1_37_0)
               .setAttribute("code.namespace", className)
               .setAttribute("code.function", methodName)
               .startSpan();

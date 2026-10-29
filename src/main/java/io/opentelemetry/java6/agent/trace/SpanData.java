@@ -33,6 +33,8 @@ public final class SpanData {
   public final String traceState;
   /** Instrumentation scope name (for example {@code io.opentelemetry.jdbc}). */
   public final String scopeName;
+  /** Schema URL of the span's scope, or {@code null} for the one mapped from the scope name. */
+  public final String schemaUrl;
   public final long startEpochNanos;
   public final long endEpochNanos;
   /** Typed attribute values: String, Long, Double, Boolean or String[]. */
@@ -51,6 +53,7 @@ public final class SpanData {
       String parentSpanId,
       String traceState,
       String scopeName,
+      String schemaUrl,
       long startEpochNanos,
       long endEpochNanos,
       Map<String, Object> attributes,
@@ -65,6 +68,7 @@ public final class SpanData {
     this.parentSpanId = parentSpanId;
     this.traceState = traceState;
     this.scopeName = scopeName;
+    this.schemaUrl = schemaUrl;
     this.startEpochNanos = startEpochNanos;
     this.endEpochNanos = endEpochNanos;
     this.attributes = attributes;
@@ -72,6 +76,11 @@ public final class SpanData {
     this.events = events;
     this.statusCode = statusCode;
     this.statusDescription = statusDescription;
+  }
+
+  /** The schema URL to export for this span's scope; empty when it has none. */
+  public String effectiveSchemaUrl() {
+    return schemaUrl != null ? schemaUrl : io.opentelemetry.java6.agent.SchemaUrls.forScope(scopeName);
   }
 
   public long durationNanos() {

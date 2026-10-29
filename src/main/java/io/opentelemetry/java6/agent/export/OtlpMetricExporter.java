@@ -5,6 +5,7 @@
 
 package io.opentelemetry.java6.agent.export;
 
+import io.opentelemetry.java6.agent.SchemaUrls;
 import io.opentelemetry.java6.agent.metrics.Attrs;
 import io.opentelemetry.java6.agent.metrics.LongCounter;
 import io.opentelemetry.java6.agent.metrics.MeterRegistry;
@@ -57,15 +58,20 @@ public final class OtlpMetricExporter implements MetricExporter {
     Map<String, ScopeMetrics.Builder> scopes = new LinkedHashMap<String, ScopeMetrics.Builder>();
     for (int i = 0; i < metrics.size(); i++) {
       MetricData m = metrics.get(i);
-      String key = m.scope + "|" + m.scopeVersion;
+      String key = m.scope + "|" + m.scopeVersion + "|" + SchemaUrls.forScope(m.scope);
       ScopeMetrics.Builder scope = scopes.get(key);
       if (scope == null) {
-        scope = ScopeMetrics.newBuilder().setScope(Otlp.scope(m.scope, m.scopeVersion));
+        scope =
+            ScopeMetrics.newBuilder()
+                .setScope(Otlp.scope(m.scope, m.scopeVersion))
+                .setSchemaUrl(SchemaUrls.forScope(m.scope));
         scopes.put(key, scope);
       }
       scope.addMetrics(metric(m));
     }
-    ResourceMetrics.Builder rm = ResourceMetrics.newBuilder().setResource(Otlp.resource(resource));
+    ResourceMetrics.Builder rm = ResourceMetrics.newBuilder()
+            .setResource(Otlp.resource(resource))
+            .setSchemaUrl(SchemaUrls.RESOURCE);
     for (ScopeMetrics.Builder scope : scopes.values()) {
       rm.addScopeMetrics(scope);
     }

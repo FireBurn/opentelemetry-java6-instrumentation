@@ -5,6 +5,7 @@
 
 package io.opentelemetry.java6.agent.export;
 
+import io.opentelemetry.java6.agent.SchemaUrls;
 import io.opentelemetry.java6.agent.metrics.Attrs;
 import io.opentelemetry.java6.agent.metrics.LongCounter;
 import io.opentelemetry.java6.agent.metrics.MeterRegistry;
@@ -57,19 +58,25 @@ public final class OtlpSpanExporter implements SpanExporter {
     Map<String, List<SpanData>> byScope = new LinkedHashMap<String, List<SpanData>>();
     for (int i = 0; i < spans.size(); i++) {
       SpanData span = spans.get(i);
-      List<SpanData> list = byScope.get(span.scopeName);
+      String key = span.scopeName + "|" + span.effectiveSchemaUrl();
+      List<SpanData> list = byScope.get(key);
       if (list == null) {
         list = new java.util.ArrayList<SpanData>();
-        byScope.put(span.scopeName, list);
+        byScope.put(key, list);
       }
       list.add(span);
     }
     ResourceSpans.Builder resourceSpans =
-        ResourceSpans.newBuilder().setResource(Otlp.resource(resource));
+        ResourceSpans.newBuilder()
+            .setResource(Otlp.resource(resource))
+            .setSchemaUrl(SchemaUrls.RESOURCE);
     for (Map.Entry<String, List<SpanData>> entry : byScope.entrySet()) {
+      List<SpanData> scopeList = entry.getValue();
       ScopeSpans.Builder scopeSpans =
-          ScopeSpans.newBuilder().setScope(Otlp.scope(entry.getKey(), scopeVersion));
-      for (SpanData span : entry.getValue()) {
+          ScopeSpans.newBuilder()
+              .setScope(Otlp.scope(scopeList.get(0).scopeName, scopeVersion))
+              .setSchemaUrl(scopeList.get(0).effectiveSchemaUrl());
+      for (SpanData span : scopeList) {
         scopeSpans.addSpans(span(span));
       }
       resourceSpans.addScopeSpans(scopeSpans);
