@@ -25,11 +25,11 @@ import java.util.Map;
 public final class AgentConfig {
 
   /** The standard agent version this agent mirrors (telemetry.distro.version, scope versions). */
-  public static final String AGENT_VERSION = "2.31.1";
+  public static final String AGENT_VERSION = "2.33.1";
   /** This agent's own version (build.sh {@code VERSION}), for logging. */
   public static final String JAVA6_AGENT_VERSION = ownVersion();
   /** The SDK version the standard agent bundles (telemetry.sdk.version). */
-  public static final String SDK_VERSION = "1.65.0";
+  public static final String SDK_VERSION = "1.67.0";
 
   public final boolean enabled;
   public final String serviceName;

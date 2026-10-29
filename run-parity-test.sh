@@ -4,7 +4,7 @@
 # the standard OpenTelemetry Java agent and this agent, captures the OTLP traces and metrics each
 # one exports, and diffs them (span trees, typed attributes, metric definitions).
 #
-# Usage: ./run-parity-test.sh [official-agent-version]      (default 2.31.1)
+# Usage: ./run-parity-test.sh [official-agent-version]      (default 2.33.1)
 #
 # Environment:
 #   JAVA        JVM for both runs (default: java on PATH; must be 8+ for the standard agent)
@@ -13,7 +13,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="${1:-2.31.1}"
+VERSION="${1:-2.33.1}"
 JAVA="${JAVA:-java}"
 OFFICIAL_JAR="build/otel-official-agent-${VERSION}.jar"
 if [ ! -f "$OFFICIAL_JAR" ]; then

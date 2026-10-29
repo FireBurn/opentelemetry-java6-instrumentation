@@ -4,13 +4,13 @@ A Java agent for **Java 6 and 7 JVMs** (in particular IBM J9 Java 6 under WebSph
 drop-in replacement for the standard
 [opentelemetry-javaagent](https://github.com/open-telemetry/opentelemetry-java-instrumentation),
 which needs Java 8+. It accepts the same `otel.*` configuration and exports the same traces and
-metrics: its output is diffed against the standard agent (currently **2.31.1**) in CI.
+metrics: its output is diffed against the standard agent (currently **2.33.1**) in CI.
 
 If the JVM is Java 8 or newer, use the standard agent.
 
 Maven coordinates of the published jar: `io.opentelemetry.javaagent:opentelemetry-java6agent`
 (this agent's own version, starting at 1.0.0; the standard agent version it mirrors is reported as
-`telemetry.distro.version`, currently 2.31.1). The build sets the version with `VERSION=x.y.z
+`telemetry.distro.version`, currently 2.33.1). The build sets the version with `VERSION=x.y.z
 ./build.sh` (default 1.0.3); it is in the jar manifest and the startup log line.
 
 - [Usage](#usage)
